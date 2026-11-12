@@ -403,7 +403,7 @@ async function renderSearch() {
       }
     } catch (err) {
       ispsnEl.hidden = false;
-      ispsnEl.innerHTML = `<p class="muted">${err.message}</p>`;
+      ispsnEl.innerHTML = `<p class="muted">${t("ispsn_unavailable")}</p>`;
     }
   } else {
     ispsnEl.hidden = true;
@@ -781,6 +781,45 @@ async function init() {
 
 init();
 
+// --- Offline banner + service worker -----------------------------------------
+
+function showOfflineBanner() {
+  let banner = document.getElementById("offline-banner");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "offline-banner";
+    banner.className = "offline-banner";
+    banner.hidden = true;
+    document.body.appendChild(banner);
+  }
+  if (navigator.onLine) {
+    banner.hidden = true;
+  } else {
+    banner.textContent = t("offline_message");
+    banner.hidden = false;
+  }
+}
+
+window.addEventListener("online", showOfflineBanner);
+window.addEventListener("offline", showOfflineBanner);
+
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js");
+  navigator.serviceWorker.register("/sw.js").then((registration) => {
+    // Ask before activating a new version (Prompt 9 requirement).
+    registration.onupdatefound = () => {
+      const installing = registration.installing;
+      if (!installing) return;
+      installing.onstatechange = () => {
+        if (installing.state === "installed" && navigator.serviceWorker.controller) {
+          if (confirm(t("update_available"))) {
+            // Reload so the new shell is served from the fresh cache.
+            window.location.reload();
+          }
+        }
+      };
+    };
+  }).catch(() => {
+    // SW unavailable (e.g. unsupported browser): app still works, just no offline shell.
+  });
+  showOfflineBanner();
 }

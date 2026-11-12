@@ -40,3 +40,15 @@ npm run test    # Vitest (frontend parity, TTS, settings/backup, ISPSN parser)
 python tools/check_locales.py         # verify every locale has all reference keys
 cd legacy && python -m pytest tests   # legacy backend suite
 ```
+
+## Adicionar ao ecrã inicial (iPhone)
+
+1. Abre a app no **Safari** do iPhone (tem de ser o Safari; Chrome não instala PWAs).
+2. Toque em **Partilhar** → **Adicionar ao ecrã principal**.
+3. A app aparece como ícone autónomo (abre em fullscreen, sem barra do browser).
+
+Notas:
+- O offline só funciona depois de a app ter sido aberta **com rede** pelo menos uma vez (o Service Worker pré-cachea a shell).
+- Os livros e PDFs já descarregados ficam no IndexedDB e abrem sem internet.
+- Pesquisa e download de novos livros precisam de ligação; sem rede aparece "Sem ligação. Os teus livros descarregados continuam disponíveis."
+- O iOS pode apagar dados de PWAs não usadas durante muito tempo — usa Exportar backup (Definições) para guardar tudo.

@@ -408,3 +408,6 @@ main { padding: 16px 16px 84px; }
 .tts-meta select { min-height: 44px; border-radius: 8px; border: 1px solid rgba(0, 0, 0, 0.2); background: var(--card); color: var(--fg); }
 .tts-meta input[type="range"] { flex: 1; }
 .tts-pages { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid rgba(0, 0, 0, 0.12); }
+
+/* Offline banner */
+.offline-banner { position: fixed; left: 0; right: 0; bottom: 64px; background: #b45309; color: #fff; padding: 10px 14px; font-size: 14px; text-align: center; z-index: 40; }

@@ -98,5 +98,8 @@
   "backup_personal_warning": "This backup includes {personal} personal-source book(s). They are for personal use only.",
   "backup_invalid": "Invalid backup file.",
   "backup_confirm": "Confirm import",
-  "ios_storage_note": "iOS may delete data from unused PWAs over time. That is why a backup exists."
+  "ios_storage_note": "iOS may delete data from unused PWAs over time. That is why a backup exists.",
+  "offline_message": "No connection. Your downloaded books are still available.",
+  "ispsn_unavailable": "The library did not respond. Try later or import the PDF.",
+  "update_available": "New version available. Update?"
 }
