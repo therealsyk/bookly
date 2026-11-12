@@ -276,21 +276,27 @@ def save_pages(book_id: int, text: str, db_path: Optional[Path] = None) -> Tuple
 # --- Source resolution ---------------------------------------------------------
 
 def resolve_gutenberg(source_id: str, client: httpx.Client) -> Dict[str, Any]:
-    """Fetch Gutenberg metadata via OPDS (Gutendex is unreachable on this network)."""
+    """Fetch Gutenberg metadata via OPDS (Gutendex is unreachable on this network).
+
+    The OPDS publication record returns the book metadata at the top level and
+    an EPUB acquisition link; HTML/plain-text URLs are derived from the id.
+    """
     url = f"https://www.gutenberg.org/opds/publications?id={source_id}"
     resp = client.get(url, timeout=cfg("source_timeout_sec", 15))
     resp.raise_for_status()
     data = resp.json()
-    pub = (data.get("publications") or [{}])[0]
-    links = pub.get("links", [])
+    meta = data.get("metadata") or {}
+    links = data.get("links", [])
     epub = next((l["href"] for l in links if l.get("type") == "application/epub+zip"), None)
-    html = next((l["href"] for l in links if l.get("type") == "text/html"), None)
-    txt = next((l["href"] for l in links if "text/plain" in (l.get("type") or "")), None)
+    author_obj = meta.get("author")
+    author = author_obj.get("name") if isinstance(author_obj, dict) else author_obj
     return {
-        "title": pub.get("metadata", {}).get("title", ""),
+        "title": meta.get("title", ""),
+        "author": author,
+        "language": meta.get("language"),
         "epub_url": epub,
-        "html_url": html,
-        "txt_url": txt,
+        "html_url": f"https://www.gutenberg.org/ebooks/{source_id}.html.no-cover",
+        "txt_url": None,
     }
 
 
@@ -345,7 +351,7 @@ def run_job(job_id: int, db_path: Optional[Path] = None) -> None:
     job = get_job(job_id, db_path)
     if not job or job["status"] == "done":
         return
-    update_job(job_id, {"status": "running"}, db_path)
+    update_job(job_id, db_path=db_path, status="running")
     try:
         with httpx.Client(headers={"User-Agent": USER_AGENT}, follow_redirects=True) as client:
             book = get_book(job["book_id"], db_path)
@@ -359,7 +365,7 @@ def run_job(job_id: int, db_path: Optional[Path] = None) -> None:
                 nonlocal done
                 done += 1
                 percent = round(100.0 * done / max(total, 1), 1)
-                update_job(job_id, {"done_items": done, "percent": percent}, db_path)
+                update_job(job_id, db_path=db_path, done_items=done, percent=percent)
 
             # Cover
             cover_url = _cover_for(title, author, job["source_id"] if job["source"] == "gutenberg" else None)
@@ -407,7 +413,13 @@ def run_job(job_id: int, db_path: Optional[Path] = None) -> None:
             if text_body:
                 pages_path, page_count = save_pages(job["book_id"], text_body, db_path)
                 from backend.db import update_book
-                update_book(job["book_id"], db_path=db_path, text_path=pages_path)
+                # Also refresh metadata captured while resolving the source.
+                fields = {"text_path": pages_path}
+                if job.get("title") in ("", "Untitled") and meta.get("title"):
+                    fields["title"] = meta["title"]
+                if not job.get("author") and meta.get("author"):
+                    fields["author"] = meta["author"]
+                update_book(job["book_id"], db_path=db_path, **fields)
 
             # Audio (LibriVox chapters)
             if job["source"] == "librivox":
@@ -425,9 +437,9 @@ def run_job(job_id: int, db_path: Optional[Path] = None) -> None:
                     add_track(job["book_id"], str(mp3_path), i, ch.get("title"), ch.get("duration_sec"), db_path)
                     bump()
 
-            update_job(job_id, {"status": "done", "total_items": total, "done_items": done, "percent": 100.0}, db_path)
+            update_job(job_id, db_path=db_path, status="done", total_items=total, done_items=done, percent=100.0)
     except Exception as exc:
-        update_job(job_id, {"status": "error", "error": str(exc)}, db_path)
+        update_job(job_id, db_path=db_path, status="error", error=str(exc))
 
 
 # --- Public entry points -------------------------------------------------------
