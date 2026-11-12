@@ -37,5 +37,18 @@
   "language_auto": "Automático (telemóvel)",
   "save": "Guardar",
   "has_audio": "Áudio",
-  "has_text": "Texto"
+  "has_text": "Texto",
+  "read": "Ler",
+  "listen": "Ouvir",
+  "voice_ai": "Voz IA",
+  "add": "Adicionar",
+  "adding": "A adicionar...",
+  "added": "Adicionado",
+  "page": "Página",
+  "of": "de",
+  "chapter": "Capítulo",
+  "not_started": "Por começar",
+  "delete": "Remover",
+  "delete_confirm": "Remover",
+  "cancel": "Cancelar"
 }

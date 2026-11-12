@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.config import FRONTEND_DIR, HOST, PORT
+from backend.config import COVERS_DIR, FRONTEND_DIR, HOST, PORT, ensure_dirs
 from backend.db import init_db
 
 
@@ -41,6 +41,11 @@ from backend.routers.prefs import router as prefs_router
 app.include_router(search_router)
 app.include_router(library_router)
 app.include_router(prefs_router)
+
+# Cover images served from the data folder (no absolute paths in the frontend).
+ensure_dirs()
+if COVERS_DIR.exists():
+    app.mount("/covers", StaticFiles(directory=str(COVERS_DIR)), name="covers")
 
 # More API routers (books, audio, progress, settings) are added in later
 # prompts; routers/ and services/ packages are ready for them.

@@ -89,6 +89,9 @@ def api_library(search: Optional[str] = None, kind: Optional[str] = None,
     out = []
     for book in books:
         prog = _progress_for(book["id"])
+        # Serve covers through /covers/<file> so the frontend never needs an
+        # absolute path.
+        cover = f"/covers/{Path(book['cover_path']).name}" if book.get("cover_path") else None
         out.append({
             "id": book["id"],
             "title": book["title"],
@@ -96,10 +99,12 @@ def api_library(search: Optional[str] = None, kind: Optional[str] = None,
             "source": book["source"],
             "kind": book["kind"],
             "language": book["language"],
-            "cover_path": book["cover_path"],
+            "cover_url": cover,
             "pages": _page_count(book["id"]),
             "progress_percent": prog["percent"],
             "current_page": int(prog["position"]),
+            "chapter_index": prog["chapter_index"],
+            "position": prog["position"],
             "mode": prog["mode"],
             "added_at": book["added_at"],
         })

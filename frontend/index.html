@@ -11,11 +11,6 @@
 <body>
   <header class="topbar">
     <h1 id="app-title">Bookly</h1>
-    <nav id="nav" aria-label="navigation">
-      <button class="nav-btn active" data-view="library"></button>
-      <button class="nav-btn" data-view="search"></button>
-      <button class="nav-btn" data-view="settings"></button>
-    </nav>
   </header>
 
   <main id="app">
@@ -35,6 +30,35 @@
       <div id="prefs-editor"></div>
     </section>
   </main>
+
+  <nav id="bottom-nav" class="bottom-nav" aria-label="navigation">
+    <button class="nav-btn active" data-view="search"></button>
+    <button class="nav-btn" data-view="library"></button>
+    <button class="nav-btn" data-view="settings"></button>
+  </nav>
+
+  <div id="book-detail" class="detail-overlay" hidden>
+    <div class="detail-card">
+      <img id="detail-cover" alt="">
+      <h2 id="detail-title"></h2>
+      <p id="detail-author" class="muted"></p>
+      <div class="detail-actions">
+        <button id="action-read" class="btn primary" hidden></button>
+        <button id="action-listen" class="btn primary" hidden></button>
+        <button id="action-tts" class="btn ghost"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirm-delete" class="confirm-overlay" hidden>
+    <div class="confirm-card">
+      <p id="confirm-text"></p>
+      <div class="confirm-actions">
+        <button id="confirm-cancel" class="btn ghost"></button>
+        <button id="confirm-yes" class="btn danger"></button>
+      </div>
+    </div>
+  </div>
 
   <div id="onboarding" class="onboarding" hidden>
     <div class="onboarding-card">

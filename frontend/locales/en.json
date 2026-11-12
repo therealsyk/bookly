@@ -37,5 +37,18 @@
   "language_auto": "Automatic (phone)",
   "save": "Save",
   "has_audio": "Audio",
-  "has_text": "Text"
+  "has_text": "Text",
+  "read": "Read",
+  "listen": "Listen",
+  "voice_ai": "AI voice",
+  "add": "Add",
+  "adding": "Adding...",
+  "added": "Added",
+  "page": "Page",
+  "of": "of",
+  "chapter": "Chapter",
+  "not_started": "Not started",
+  "delete": "Remove",
+  "delete_confirm": "Remove",
+  "cancel": "Cancel"
 }

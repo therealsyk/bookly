@@ -81,19 +81,134 @@ function setView(view) {
 
 // --- Library ----------------------------------------------------------------
 
+function fmtTime(sec) {
+  const s = Math.max(0, Math.floor(sec || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
 async function renderLibrary() {
   const list = document.getElementById("book-list");
   const empty = document.getElementById("library-empty");
-  const books = await api("/api/library") || [];
+  const data = await api("/api/library");
+  const books = (data && data.books) || [];
   empty.hidden = books.length > 0;
   empty.textContent = t("empty_library");
   list.innerHTML = "";
   for (const b of books) {
     const li = document.createElement("li");
-    li.className = "book-card";
-    li.textContent = b.title;
+    li.className = "book-row";
+
+    if (b.cover_url) {
+      const img = document.createElement("img");
+      img.className = "row-cover";
+      img.src = b.cover_url;
+      img.alt = "";
+      img.loading = "lazy";
+      li.appendChild(img);
+    } else {
+      const ph = document.createElement("div");
+      ph.className = "row-cover placeholder";
+      li.appendChild(ph);
+    }
+
+    const info = document.createElement("div");
+    info.className = "row-info";
+    const title = document.createElement("strong");
+    title.textContent = b.title;
+    info.appendChild(title);
+    if (b.author) {
+      const author = document.createElement("span");
+      author.className = "muted";
+      author.textContent = b.author;
+      info.appendChild(author);
+    }
+
+    // Position line: text -> "Page X of Y", audio -> "Chapter X • mm:ss".
+    const meta = document.createElement("span");
+    meta.className = "row-meta muted";
+    if (b.mode === "listen") {
+      meta.textContent = `${t("chapter")} ${b.chapter_index || 1} • ${fmtTime(b.position)}`;
+    } else if (b.pages) {
+      meta.textContent = `${t("page")} ${(b.current_page || 0) + 1} ${t("of")} ${b.pages}`;
+    } else if (b.kind === "audio") {
+      meta.textContent = t("not_started");
+    }
+    info.appendChild(meta);
+
+    const bar = document.createElement("div");
+    bar.className = "progress-bar";
+    const fill = document.createElement("div");
+    fill.className = "progress-fill";
+    fill.style.width = `${Math.min(100, Math.round((b.progress_percent || 0) * 100))}%`;
+    bar.appendChild(fill);
+    info.appendChild(bar);
+
+    li.appendChild(info);
+
+    // Long press (>=600 ms) opens the delete confirmation.
+    let pressTimer = null;
+    li.addEventListener("pointerdown", () => {
+      pressTimer = setTimeout(() => confirmDelete(b), 600);
+    });
+    const clearPress = () => {
+      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    };
+    li.addEventListener("pointerup", clearPress);
+    li.addEventListener("pointercancel", clearPress);
+
+    // Tap opens the detail screen.
+    li.addEventListener("click", () => openDetail(b));
+
     list.appendChild(li);
   }
+}
+
+function confirmDelete(book) {
+  const overlay = document.getElementById("confirm-delete");
+  document.getElementById("confirm-text").textContent = `${t("delete_confirm")} "${book.title}"?`;
+  document.getElementById("confirm-cancel").textContent = t("cancel");
+  document.getElementById("confirm-yes").textContent = t("delete");
+  overlay.hidden = false;
+  document.getElementById("confirm-cancel").onclick = () => { overlay.hidden = true; };
+  document.getElementById("confirm-yes").onclick = async () => {
+    await api(`/api/library/${book.id}`, { method: "DELETE" });
+    overlay.hidden = true;
+    renderLibrary();
+  };
+}
+
+// --- Book detail ------------------------------------------------------------
+
+async function openDetail(book) {
+  const overlay = document.getElementById("book-detail");
+  const cover = document.getElementById("detail-cover");
+  if (book.cover_url) {
+    cover.src = book.cover_url;
+    cover.hidden = false;
+  } else {
+    cover.hidden = true;
+  }
+  document.getElementById("detail-title").textContent = book.title;
+  document.getElementById("detail-author").textContent = book.author || "";
+
+  const readBtn = document.getElementById("action-read");
+  const listenBtn = document.getElementById("action-listen");
+  const ttsBtn = document.getElementById("action-tts");
+  readBtn.hidden = !book.pages;
+  listenBtn.hidden = book.kind !== "audio" && book.kind !== "both";
+  ttsBtn.textContent = t("voice_ai");
+  readBtn.textContent = t("read");
+  listenBtn.textContent = t("listen");
+
+  // Phases 3-5 implement the actual reader/player/TTS screens.
+  readBtn.onclick = () => { overlay.hidden = true; };
+  listenBtn.onclick = () => { overlay.hidden = true; };
+  ttsBtn.onclick = () => { overlay.hidden = true; };
+
+  overlay.hidden = false;
+  overlay.querySelector(".detail-card").onclick = (e) => {
+    if (e.target === overlay.querySelector(".detail-card")) overlay.hidden = true;
+  };
 }
 
 // --- Search + recommendations ----------------------------------------------
@@ -129,14 +244,64 @@ function bookCard(item) {
   }
   const flags = document.createElement("div");
   flags.className = "flags";
-  if (item.has_audio) flags.appendChild(span(t("has_audio")));
-  if (item.has_text) flags.appendChild(span(t("has_text")));
+  if (item.has_audio) flags.appendChild(spanFlag("🎧"));
+  if (item.has_text) flags.appendChild(spanFlag("📖"));
   info.appendChild(flags);
+
+  // Add button with a progress bar fed by the download job.
+  const addBtn = document.createElement("button");
+  addBtn.className = "btn primary add-btn";
+  addBtn.textContent = t("add");
+  const bar = document.createElement("div");
+  bar.className = "progress-bar add-progress";
+  bar.hidden = true;
+  const fill = document.createElement("div");
+  fill.className = "progress-fill";
+  bar.appendChild(fill);
+
+  addBtn.addEventListener("click", async () => {
+    const src = (item.sources || [])[0];
+    if (!src) return;
+    addBtn.disabled = true;
+    addBtn.textContent = t("adding");
+    bar.hidden = false;
+    const res = await api("/api/library/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source: src.source,
+        source_id: src.source_id,
+        title: item.title,
+        author: item.author,
+        language: item.language,
+      }),
+    });
+    if (!res) {
+      addBtn.disabled = false;
+      addBtn.textContent = t("add");
+      bar.hidden = true;
+      return;
+    }
+    const jobId = res.job_id;
+    // Poll the job until it finishes (or errors out).
+    for (let i = 0; i < 120; i++) {
+      const job = await api(`/api/library/jobs/${jobId}`);
+      if (!job) break;
+      fill.style.width = `${Math.min(100, Math.round((job.progress || 0) * 100))}%`;
+      if (job.status === "done" || job.status === "error") break;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    addBtn.textContent = job && job.status === "done" ? t("added") : t("add");
+    if (job && job.status === "error") addBtn.disabled = false;
+  });
+
+  info.appendChild(addBtn);
+  info.appendChild(bar);
   div.appendChild(info);
   return div;
 }
 
-function span(text) {
+function spanFlag(text) {
   const s = document.createElement("span");
   s.className = "flag";
   s.textContent = text;
@@ -214,6 +379,15 @@ async function renderSearch() {
   for (const item of results) resultsEl.appendChild(bookCard(item));
 }
 
+// Debounced search: run 400 ms after the user stops typing.
+function debounce(fn, ms) {
+  let timer = null;
+  return (...args) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
 // --- Onboarding ------------------------------------------------------------
 
 const GENRES = ["fiction", "romance", "detective", "scifi", "fantasy", "adventure",
@@ -266,12 +440,12 @@ function renderOnboardingStep(stepIndex) {
       if (e.key === "Enter" && input.value.trim()) {
         prefs.authors.push(input.value.trim());
         input.value = "";
-        const tag = span(prefs.authors[prefs.authors.length - 1]);
+        const tag = spanFlag(prefs.authors[prefs.authors.length - 1]);
         tags.appendChild(tag);
       }
     });
     container.appendChild(input);
-    for (const author of prefs.authors) tags.appendChild(span(author));
+    for (const author of prefs.authors) tags.appendChild(spanFlag(author));
     container.appendChild(tags);
   }
 
@@ -362,7 +536,7 @@ async function init() {
     btn.textContent = t(btn.dataset.view === "library" ? "library" : btn.dataset.view === "search" ? "search" : "settings");
     btn.addEventListener("click", () => setView(btn.dataset.view));
   });
-  document.getElementById("search-input").addEventListener("input", renderSearch);
+  document.getElementById("search-input").addEventListener("input", debounce(renderSearch, 400));
   if (onboardingNeeded()) openOnboarding();
   await renderLibrary();
 }
