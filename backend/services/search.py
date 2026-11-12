@@ -99,6 +99,33 @@ async def fetch_gutendex(client: httpx.AsyncClient, q: str, lang: str) -> List[D
     return items
 
 
+def fetch_gutenberg_opds_sync(client: httpx.Client, q: str, lang: str) -> List[Dict[str, Any]]:
+    """Project Gutenberg OPDS catalogue (fallback when Gutendex is unreachable)."""
+    resp = client.get("https://www.gutenberg.org/opds/search", params={"query": q})
+    resp.raise_for_status()
+    data = resp.json()
+    items: List[Dict[str, Any]] = []
+    for pub in data.get("publications", []):
+        meta = pub.get("metadata", {})
+        identifier = str(meta.get("identifier", "")).rstrip("/")
+        source_id = identifier.rsplit("/", 1)[-1]
+        author_obj = meta.get("author") or {}
+        author = (author_obj.get("name") if isinstance(author_obj, dict) else str(author_obj)) or None
+        images = pub.get("images") or []
+        items.append({
+            "source": "gutenberg",
+            "source_id": source_id,
+            "title": (meta.get("title") or "").strip(),
+            "author": author,
+            "language": meta.get("language") or lang,
+            "url": identifier,
+            "cover_url": images[0]["href"] if images else "",
+            "has_audio": False,
+            "has_text": True,
+        })
+    return items
+
+
 async def fetch_archive(client: httpx.AsyncClient, q: str, lang: str) -> List[Dict[str, Any]]:
     """Internet Archive advancedsearch for mediatype:text (public domain)."""
     query = f"title:({q}) AND mediatype:(texts)"
@@ -260,6 +287,13 @@ async def search_books(
     for source, resp in responses.items():
         if isinstance(resp, Exception):
             errors[source] = str(resp)
+            # Gutendex down on this network: try the OPDS catalogue fallback.
+            if source == "gutenberg":
+                try:
+                    with httpx.Client(timeout=15.0, headers={"User-Agent": "Bookly/0.1 (personal library app)"}, follow_redirects=True) as sync_client:
+                        raw_items.extend(fetch_gutenberg_opds_sync(sync_client, q, lang))
+                except Exception as fallback_exc:
+                    errors["gutenberg_opds"] = str(fallback_exc)
         else:
             raw_items.extend(resp)
 

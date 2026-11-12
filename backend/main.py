@@ -35,8 +35,10 @@ def health() -> dict:
 
 
 from backend.routers.search import router as search_router
+from backend.routers.library import router as library_router
 
 app.include_router(search_router)
+app.include_router(library_router)
 
 # More API routers (books, audio, progress, settings) are added in later
 # prompts; routers/ and services/ packages are ready for them.
