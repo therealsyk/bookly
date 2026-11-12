@@ -126,6 +126,20 @@ def api_delete(book_id: int) -> dict:
     return {"deleted": True, "id": book_id}
 
 
+@router.get("/pages/{book_id}")
+def api_pages(book_id: int) -> dict:
+    """Paginated text for the reader, plus the saved current page."""
+    pages_file = BOOKS_DIR / f"{book_id}_pages.json"
+    if not pages_file.exists():
+        raise HTTPException(status_code=404, detail="no text pages for this book")
+    try:
+        pages = json.loads(pages_file.read_text(encoding="utf-8")).get("pages", [])
+    except (json.JSONDecodeError, OSError):
+        raise HTTPException(status_code=500, detail="corrupted pages file")
+    prog = _progress_for(book_id)
+    return {"book_id": book_id, "pages": pages, "current_page": int(prog["position"])}
+
+
 @router.post("/import")
 async def api_import(
     request: Request,

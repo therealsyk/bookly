@@ -201,7 +201,7 @@ async function openDetail(book) {
   listenBtn.textContent = t("listen");
 
   // Phases 3-5 implement the actual reader/player/TTS screens.
-  readBtn.onclick = () => { overlay.hidden = true; };
+  readBtn.onclick = () => { overlay.hidden = true; openReader(book); };
   listenBtn.onclick = () => { overlay.hidden = true; };
   ttsBtn.onclick = () => { overlay.hidden = true; };
 

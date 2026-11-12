@@ -50,5 +50,9 @@
   "not_started": "Not started",
   "delete": "Remove",
   "delete_confirm": "Remove",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "close": "Close",
+  "jump_to_page": "Jump to page",
+  "go": "Go",
+  "no_text": "This book has no text available yet."
 }

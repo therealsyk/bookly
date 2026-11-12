@@ -37,10 +37,12 @@ def health() -> dict:
 from backend.routers.search import router as search_router
 from backend.routers.library import router as library_router
 from backend.routers.prefs import router as prefs_router
+from backend.routers.progress import router as progress_router
 
 app.include_router(search_router)
 app.include_router(library_router)
 app.include_router(prefs_router)
+app.include_router(progress_router)
 
 # Cover images served from the data folder (no absolute paths in the frontend).
 ensure_dirs()

@@ -223,3 +223,73 @@ main { padding: 16px 16px 84px; }
 .tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 
 .settings { display: flex; flex-direction: column; gap: 10px; }
+
+/* --- Reader (Phase 3) --- */
+.reader-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+}
+.reader-overlay[data-theme="dark"] { background: #101318; color: #e7e9ee; }
+.reader-overlay[data-theme="sepia"] { background: #f4ecd8; color: #3a2f22; }
+
+.reader-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+.reader-topbar span { flex: 1; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; }
+.reader-topbar select { min-height: 44px; border-radius: 8px; border: 1px solid rgba(0, 0, 0, 0.2); background: var(--card); color: var(--fg); }
+
+.reader-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px;
+}
+.reader-text {
+  flex: 1;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  max-height: 100%;
+}
+.reader-text.font-small { font-size: 0.85rem; }
+.reader-text.font-normal { font-size: 1rem; }
+.reader-text.font-large { font-size: 1.2rem; }
+.reader-text.family-serif { font-family: Georgia, "Times New Roman", serif; }
+.reader-text.family-sans { font-family: system-ui, -apple-system, sans-serif; }
+
+.page-arrow {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: transparent;
+  color: var(--fg);
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+
+.reader-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+.reader-footer input {
+  min-height: 44px;
+  width: 70px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: var(--card);
+  color: var(--fg);
+}

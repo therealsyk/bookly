@@ -72,6 +72,38 @@
     </div>
   </div>
 
+  <div id="reader" class="reader-overlay" hidden data-theme="light" data-font="serif">
+    <div class="reader-topbar">
+      <button id="reader-close" class="btn ghost"></button>
+      <span id="reader-title"></span>
+      <select id="reader-size" aria-label="font size">
+        <option value="small">A-</option>
+        <option value="normal">A</option>
+        <option value="large">A+</option>
+      </select>
+      <select id="reader-family" aria-label="font family">
+        <option value="serif">Serif</option>
+        <option value="sans">Sans</option>
+      </select>
+      <select id="reader-theme" aria-label="theme">
+        <option value="light">☀</option>
+        <option value="dark">🌙</option>
+        <option value="sepia">Sepia</option>
+      </select>
+    </div>
+    <div class="reader-body" id="reader-body">
+      <button id="reader-prev" class="page-arrow left" aria-label="previous page">‹</button>
+      <div class="reader-text font-normal family-serif" id="reader-page-text"></div>
+      <button id="reader-next" class="page-arrow right" aria-label="next page">›</button>
+    </div>
+    <div class="reader-footer">
+      <span id="reader-counter"></span>
+      <input id="reader-jump" type="number" min="1" aria-label="jump to page">
+      <button id="reader-jump-btn" class="btn ghost"></button>
+    </div>
+  </div>
+
+  <script src="/pages/reader.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

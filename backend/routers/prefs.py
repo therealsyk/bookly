@@ -50,6 +50,18 @@ def _clean_prefs(raw: Dict[str, Any]) -> Dict[str, Any]:
     if isinstance(onboarded, bool):
         prefs["onboarded"] = onboarded
 
+    # Reader settings (font size/family/theme) are stored alongside prefs.
+    reader = raw.get("reader")
+    if isinstance(reader, dict):
+        valid_sizes = {"small", "normal", "large"}
+        valid_families = {"serif", "sans"}
+        valid_themes = {"light", "dark", "sepia"}
+        prefs["reader"] = {
+            "font_size": reader.get("font_size") if reader.get("font_size") in valid_sizes else "normal",
+            "font_family": reader.get("font_family") if reader.get("font_family") in valid_families else "serif",
+            "theme": reader.get("theme") if reader.get("theme") in valid_themes else "light",
+        }
+
     return prefs
 
 
