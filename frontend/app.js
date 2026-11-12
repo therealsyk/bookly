@@ -101,10 +101,19 @@ async function renderLibrary() {
 function bookCard(item) {
   const div = document.createElement("div");
   div.className = "result-card";
-  if (item.cover_url) {
+  // Fallback to Open Library covers when the source has no cover.
+  let cover = item.cover_url || "";
+  if (!cover && item.sources && item.sources.length) {
+    const src = item.sources[0];
+    if (src.source === "gutenberg" && src.source_id) {
+      cover = `https://covers.openlibrary.org/b/id/${src.source_id}-L.jpg`;
+    }
+  }
+  if (cover) {
     const img = document.createElement("img");
-    img.src = item.cover_url;
+    img.src = cover;
     img.alt = "";
+    img.loading = "lazy";
     div.appendChild(img);
   }
   const info = document.createElement("div");

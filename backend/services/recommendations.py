@@ -241,7 +241,10 @@ async def get_recommendations(
         for author in authors:
             coros.append(_safe(f"author:{author}", fetch_gutendex_author(client, author)))
 
-        for name, result in await asyncio.gather(*coros):
+        # Tag every item with the genre/topic that produced it, so grouping is
+        # accurate instead of guessed from titles.
+        gathered = await asyncio.gather(*coros)
+        for name, result in gathered:
             if isinstance(result, Exception):
                 errors[name] = str(result)
                 # OPDS fallback for failed Gutendex topic queries.
@@ -249,10 +252,19 @@ async def get_recommendations(
                     topic = name.split(":", 1)[1]
                     try:
                         with httpx.Client(timeout=15.0, headers={"User-Agent": "Bookly/0.1 (personal library app)"}, follow_redirects=True) as sync_client:
-                            raw_items.extend(fetch_gutenberg_opds_sync(sync_client, topic, languages[0] if languages else "en"))
+                            fallback = fetch_gutenberg_opds_sync(sync_client, topic, languages[0] if languages else "en")
+                            for fb in fallback:
+                                fb["_genre_tags"] = [next((g for g, topics in GENRE_TOPICS.items() if topic in topics), "other")]
+                            raw_items.extend(fallback)
                     except Exception as fb_exc:
                         errors[f"{name}_opds"] = str(fb_exc)
             else:
+                # name is "gutenberg:<topic>", "librivox:<topic>" or "author:<name>"
+                if name.startswith(("gutenberg:", "librivox:")):
+                    topic = name.split(":", 1)[1]
+                    genre = next((g for g, topics in GENRE_TOPICS.items() if topic in topics), "other")
+                    for item in result:
+                        item.setdefault("_genre_tags", []).append(genre)
                 raw_items.extend(result)
     finally:
         if own_client:
@@ -268,15 +280,13 @@ async def get_recommendations(
     elif format_pref == "text":
         merged = [m for m in merged if m["has_text"]]
 
-    # Tag each item with matching genres (approximate, by topic term match).
-    genre_by_topic = {topic: genre for genre, topics in GENRE_TOPICS.items() for topic in topics}
+    # Tag each item with the genre(s) whose query produced it. A source url is
+    # only present for items fetched by that query, so we re-run attribution by
+    # matching title/author against nothing reliable; instead each fetcher tags
+    # its own items. Simpler: keep a mapping from source_id -> genres during
+    # collection (see _safe loop above).
     for item in merged:
-        item["genres"] = []
-        for src in item["sources"]:
-            url = src.get("url", "")
-            for topic, genre in genre_by_topic.items():
-                if topic.lower() in (item.get("title", "") or "").lower() and genre not in item["genres"]:
-                    item["genres"].append(genre)
+        item["genres"] = list(item.get("_genre_tags", []))
 
     # Group by genre for carousels.
     groups: Dict[str, List[Dict[str, Any]]] = {}
