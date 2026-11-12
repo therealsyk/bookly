@@ -20,14 +20,14 @@
 
 ## Fases
 
-* \[ ] Fase 1: Backend (Prompts 1, 2, 3)
-* \[ ] Fase 2: Interface base (4, 4B)
-* \[ ] Fase 3: Ler (5)
-* \[ ] Fase 4: Ouvir (6)
-* \[ ] Fase 5: Voz IA (7, 7B)
-* \[ ] Fase 6: Acabamentos (8, 9, 10)
+* \[x\] Fase 1: Backend (Prompts 1, 2, 3) — done, now legacy/backend (39 pytest passed)
+* \[x\] Fase 2: Interface base (4, 4B) — bottom nav, search debounce 400 ms, library rows, detail overlay
+* \[x\] Fase 3: Ler (5) — reader.js paginated, resume page, themes/fonts, progress debounce 1 s
+* \[x\] Fase 4: Ouvir (6, 6b port) — player.js ±15s/speed/sleep/Media Session; Range 206 verified; port to IndexedDB (Prompt 6b): db/search/paginate/progress/audio/pdf/migrate + sources; Vitest 23 passed; npm build OK
+* \[x\] Fase 5: Voz IA (7) — speechSynthesis sentence queue, highlight, auto page advance, tts progress shared with read; 12 tests passed. 7B not yet specified
+* \[ ] Fase 6: Acabamentos (8 definitions UI, 9 manifest/sw.js offline, 10 final tests) — prompts not sent yet
 
 ## Estado atual
 
-Nada implementado.
+App 100% client-side (Vite + IndexedDB). Backend FastAPI moved to legacy/backend/ kept for parity. Open: Prompts 7B, 8, 9, 10.
 
