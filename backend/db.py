@@ -64,6 +64,12 @@ CREATE TABLE IF NOT EXISTS search_cache (
     cached_at TEXT NOT NULL,               -- ISO-8601 UTC
     PRIMARY KEY (q, lang)
 );
+
+CREATE TABLE IF NOT EXISTS rec_cache (
+    prefs_hash TEXT PRIMARY KEY,           -- hash of the preferences payload
+    payload    TEXT NOT NULL,              -- JSON recommendations result
+    cached_at  TEXT NOT NULL               -- ISO-8601 UTC
+);
 """
 
 

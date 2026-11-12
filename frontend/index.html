@@ -11,7 +11,11 @@
 <body>
   <header class="topbar">
     <h1 id="app-title">Bookly</h1>
-    <nav id="nav" aria-label="navigation"></nav>
+    <nav id="nav" aria-label="navigation">
+      <button class="nav-btn active" data-view="library"></button>
+      <button class="nav-btn" data-view="search"></button>
+      <button class="nav-btn" data-view="settings"></button>
+    </nav>
   </header>
 
   <main id="app">
@@ -19,7 +23,30 @@
       <p id="library-empty" hidden></p>
       <ul id="book-list"></ul>
     </section>
+
+    <section id="search" class="search" hidden>
+      <input id="search-input" type="search" autocomplete="off">
+      <div id="search-results"></div>
+      <div id="recommendations" hidden></div>
+    </section>
+
+    <section id="settings" class="settings" hidden>
+      <h2 id="settings-title"></h2>
+      <div id="prefs-editor"></div>
+    </section>
   </main>
+
+  <div id="onboarding" class="onboarding" hidden>
+    <div class="onboarding-card">
+      <h2 id="ob-title"></h2>
+      <p id="ob-intro"></p>
+      <div id="ob-step"></div>
+      <div class="onboarding-actions">
+        <button id="ob-skip" class="btn ghost"></button>
+        <button id="ob-next" class="btn primary"></button>
+      </div>
+    </div>
+  </div>
 
   <script src="/app.js"></script>
 </body>
