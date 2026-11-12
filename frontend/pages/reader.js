@@ -1,7 +1,9 @@
-// Bookly paginated text reader (Phase 3).
-// Loaded from app.js via openReader(book). All text goes through t() which
-// lives in the main shell; settings persist in localStorage and are saved to
-// the server through PUT /api/prefs.
+// Bookly paginated text reader (Phase 3, now fully client-side via IndexedDB).
+// Imported by app.js as a module; all visible text goes through t() which
+// lives in the main shell. Settings persist in localStorage and in prefs.
+
+import { getPages, saveProgress } from "../db.js";
+import { savePrefs } from "../db.js";
 
 const FONT_SIZES = ["small", "normal", "large"];
 const FONT_FAMILIES = ["serif", "sans"];
@@ -29,12 +31,8 @@ function getReaderSettings() {
 
 function saveReaderSettings(settings) {
   localStorage.setItem("bookly_reader", JSON.stringify(settings));
-  // Persist to the server too (best effort; the app works offline via sw.js).
-  fetch("/api/prefs", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ reader: settings }),
-  }).catch(() => {});
+  // Persist in IndexedDB prefs too (best effort; the app works offline via sw.js).
+  savePrefs({ reader: settings }).catch(() => {});
 }
 
 // Global gestures are bound ONCE (see bindReaderGestures) and always act on the
@@ -75,23 +73,19 @@ function openReader(book) {
     pageEl.textContent = pages[current] || "";
     counterEl.textContent = `${t("page")} ${current + 1} ${t("of")} ${pages.length}`;
     jumpInput.value = String(current + 1);
-    saveProgress();
+    queueProgress();
   }
 
-  // Debounced progress save (1 s) on every page change.
+  // Debounced progress save (1 s) on every page change - same behaviour as the
+  // backend port, now writing straight to IndexedDB.
   let progressTimer = null;
-  function saveProgress() {
+  function queueProgress() {
     if (progressTimer) clearTimeout(progressTimer);
     progressTimer = setTimeout(() => {
-      fetch(`/api/progress/${book.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "read",
-          position: current,
-          chapter_index: 0,
-          percent: pages.length ? (current + 1) / pages.length : 0,
-        }),
+      saveProgress(book.id, "read", {
+        position: current,
+        chapter_index: 0,
+        percent: pages.length ? (current + 1) / pages.length : 0,
       }).catch(() => {});
     }, 1000);
   }
@@ -100,15 +94,10 @@ function openReader(book) {
     // Save immediately when the reader closes.
     if (progressTimer) clearTimeout(progressTimer);
     progressTimer = null;
-    fetch(`/api/progress/${book.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        mode: "read",
-        position: current,
-        chapter_index: 0,
-        percent: pages.length ? (current + 1) / pages.length : 0,
-      }),
+    saveProgress(book.id, "read", {
+      position: current,
+      chapter_index: 0,
+      percent: pages.length ? (current + 1) / pages.length : 0,
     }).catch(() => {});
   }
 
@@ -122,25 +111,22 @@ function openReader(book) {
 
   async function load() {
     applySettings();
-    const data = await api(`/api/library/pages/${book.id}`);
-    if (!data || !Array.isArray(data.pages) || !data.pages.length) {
+    pages = await getPages(book.id);
+    if (!pages || !pages.length) {
       document.getElementById("reader-title").textContent = book.title;
       pageEl.textContent = t("no_text");
       counterEl.textContent = "";
       overlay.hidden = false;
       return;
     }
-    pages = data.pages;
-    // Resume exactly where the user left off.
-    current = clampInt(data.current_page, 0, pages.length - 1);
+    // Resume exactly where the user left off (IndexedDB progress, mode "read").
+    current = 0;
     document.getElementById("reader-title").textContent = book.title;
 
-    const prev = await api(`/api/progress/${book.id}`);
-    if (prev && prev.progress) {
-      for (const row of prev.progress) {
-        if (row.mode === "read" && row.position >= 0) {
-          current = clampInt(row.position, 0, pages.length - 1);
-        }
+    const rows = await getProgress(book.id);
+    for (const row of rows) {
+      if (row.mode === "read" && row.position >= 0) {
+        current = clampInt(row.position, 0, pages.length - 1);
       }
     }
 
@@ -189,3 +175,5 @@ function openReader(book) {
 
   load();
 }
+
+export { openReader };

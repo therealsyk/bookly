@@ -91,7 +91,15 @@ def api_library(search: Optional[str] = None, kind: Optional[str] = None,
         prog = _progress_for(book["id"])
         # Serve covers through /covers/<file> so the frontend never needs an
         # absolute path.
-        cover = f"/covers/{Path(book['cover_path']).name}" if book.get("cover_path") else None
+        if book.get("cover_path"):
+            cover = f"/covers/{Path(book['cover_path']).name}"
+        elif book.get("source_id"):
+            # Open Library fallback so the library grid always shows a cover.
+            cover = (f"https://covers.openlibrary.org/b/gutenberg/{book['source_id']}-M.jpg?default=false"
+                     if book.get("source") == "gutenberg"
+                     else f"https://covers.openlibrary.org/b/title/{quote(book['title'])}-M.jpg?default=false")
+        else:
+            cover = None
         out.append({
             "id": book["id"],
             "title": book["title"],

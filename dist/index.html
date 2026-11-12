@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1115">
+  <title>Bookly</title>
+  <link rel="manifest" href="/assets/manifest-D1x1QRhV.json">
+  <script type="module" crossorigin src="/assets/index-htpdlQc-.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-D13VAwGD.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 id="app-title">Bookly</h1>
+  </header>
+
+  <main id="app">
+    <section id="library" class="library">
+      <p id="library-empty" hidden></p>
+      <ul id="book-list"></ul>
+    </section>
+
+    <section id="search" class="search" hidden>
+      <input id="search-input" type="search" autocomplete="off">
+      <div id="search-results"></div>
+      <div id="ispsn-results" hidden></div>
+      <div id="recommendations" hidden></div>
+    </section>
+
+    <section id="settings" class="settings" hidden>
+      <h2 id="settings-title"></h2>
+      <div id="prefs-editor"></div>
+      <div class="import-row">
+        <input id="pdf-import" type="file" accept="application/pdf,.txt,.epub">
+        <button id="pdf-import-btn" class="btn primary"></button>
+      </div>
+    </section>
+  </main>
+
+  <nav id="bottom-nav" class="bottom-nav" aria-label="navigation">
+    <button class="nav-btn active" data-view="search"></button>
+    <button class="nav-btn" data-view="library"></button>
+    <button class="nav-btn" data-view="settings"></button>
+  </nav>
+
+  <div id="book-detail" class="detail-overlay" hidden>
+    <div class="detail-card">
+      <img id="detail-cover" alt="">
+      <h2 id="detail-title"></h2>
+      <p id="detail-author" class="muted"></p>
+      <div class="detail-actions">
+        <button id="action-read" class="btn primary" hidden></button>
+        <button id="action-listen" class="btn primary" hidden></button>
+        <button id="action-tts" class="btn ghost"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirm-delete" class="confirm-overlay" hidden>
+    <div class="confirm-card">
+      <p id="confirm-text"></p>
+      <div class="confirm-actions">
+        <button id="confirm-cancel" class="btn ghost"></button>
+        <button id="confirm-yes" class="btn danger"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="onboarding" class="onboarding" hidden>
+    <div class="onboarding-card">
+      <h2 id="ob-title"></h2>
+      <p id="ob-intro"></p>
+      <div id="ob-step"></div>
+      <div class="onboarding-actions">
+        <button id="ob-skip" class="btn ghost"></button>
+        <button id="ob-next" class="btn primary"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="reader" class="reader-overlay" hidden data-theme="light" data-font="serif">
+    <div class="reader-topbar">
+      <button id="reader-close" class="btn ghost"></button>
+      <span id="reader-title"></span>
+      <select id="reader-size" aria-label="font size">
+        <option value="small">A-</option>
+        <option value="normal">A</option>
+        <option value="large">A+</option>
+      </select>
+      <select id="reader-family" aria-label="font family">
+        <option value="serif">Serif</option>
+        <option value="sans">Sans</option>
+      </select>
+      <select id="reader-theme" aria-label="theme">
+        <option value="light">☀</option>
+        <option value="dark">🌙</option>
+        <option value="sepia">Sepia</option>
+      </select>
+    </div>
+    <div class="reader-body" id="reader-body">
+      <button id="reader-prev" class="page-arrow left" aria-label="previous page">‹</button>
+      <div class="reader-text font-normal family-serif" id="reader-page-text"></div>
+      <button id="reader-next" class="page-arrow right" aria-label="next page">›</button>
+    </div>
+    <div class="reader-footer">
+      <span id="reader-counter"></span>
+      <input id="reader-jump" type="number" min="1" aria-label="jump to page">
+      <button id="reader-jump-btn" class="btn ghost"></button>
+    </div>
+  </div>
+
+  <div id="tts" class="tts-overlay" hidden>
+    <div class="tts-topbar">
+      <button id="tts-close" class="btn ghost"></button>
+      <span id="tts-title"></span>
+    </div>
+    <p id="tts-warning" class="tts-warning" hidden></p>
+    <div class="tts-body" id="tts-body"></div>
+    <div class="tts-controls">
+      <button id="tts-prev-sentence" class="btn ghost"></button>
+      <button id="tts-playpause" class="btn primary"></button>
+      <button id="tts-next-sentence" class="btn ghost"></button>
+    </div>
+    <div class="tts-meta">
+      <select id="tts-voice" aria-label="voice"></select>
+      <input id="tts-speed" type="range" min="0.5" max="2" step="0.1" value="1" aria-label="speed">
+      <span id="tts-speed-label"></span>
+    </div>
+    <div class="tts-pages">
+      <button id="tts-prev-page" class="btn ghost"></button>
+      <span id="tts-counter"></span>
+      <button id="tts-next-page" class="btn ghost"></button>
+    </div>
+  </div>
+
+  <div id="player" class="player-overlay" hidden>
+    <div class="player-topbar">
+      <button id="player-close" class="btn ghost"></button>
+      <img id="player-cover" alt="" hidden>
+      <span id="player-title"></span>
+    </div>
+    <div class="player-chapters" id="player-chapters"></div>
+    <audio id="player-audio" preload="auto"></audio>
+    <div class="player-controls">
+      <button id="player-back15" class="btn ghost" aria-label="back 15s">−15</button>
+      <button id="player-playpause" class="btn primary" aria-label="play/pause">▶</button>
+      <button id="player-fwd15" class="btn ghost" aria-label="forward 15s">+15</button>
+    </div>
+    <div class="player-meta">
+      <span id="player-time"></span>
+      <select id="player-speed" aria-label="speed">
+        <option value="0.75">0.75×</option>
+        <option value="1">1×</option>
+        <option value="1.25">1.25×</option>
+        <option value="1.5">1.5×</option>
+        <option value="1.75">1.75×</option>
+        <option value="2">2×</option>
+      </select>
+      <select id="player-sleep" aria-label="sleep timer">
+        <option value="0">Off</option>
+        <option value="15">15 min</option>
+        <option value="30">30 min</option>
+        <option value="45">45 min</option>
+        <option value="60">60 min</option>
+      </select>
+    </div>
+  </div>
+
+</body>
+</html>

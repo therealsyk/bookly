@@ -29,7 +29,7 @@ from urllib.parse import urljoin
 import httpx
 
 from backend.config import ARCHIVE_BASE, AUDIO_DIR, BOOKS_DIR, COVERS_DIR, cfg
-from backend.db import add_book, get_connection, get_book
+from backend.db import add_book, get_connection, get_book, update_book
 
 PAGE_SIZE = int(cfg("page_size", 1800))
 CHUNK_SIZE = 64 * 1024
@@ -375,6 +375,8 @@ def run_job(job_id: int, db_path: Optional[Path] = None) -> None:
                     cover_path = COVERS_DIR / f"{job['book_id']}.jpg"
                     if not cover_path.exists():
                         _download_file(cover_url, cover_path, client)
+                    if cover_path.exists():
+                        update_book(job["book_id"], db_path=db_path, cover_path=str(cover_path))
                 except Exception:
                     pass  # cover is optional
             bump()

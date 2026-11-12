@@ -59,5 +59,16 @@
   "sleep_off": "Off",
   "speed": "Speed",
   "chapters": "Chapters",
-  "no_audio": "This book has no audio available yet."
+  "no_audio": "This book has no audio available yet.",
+  "tts_no_voice": "No Portuguese voice found on your device. Go to Settings > Accessibility > Spoken Content > Voices and add a pt-PT voice. We will use the system default voice until then.",
+  "tts_keep_screen": "Keep the screen active to listen without interruptions.",
+  "tts_play": "▶",
+  "tts_pause": "❚❚",
+  "tts_prev_sentence": "‹ sentence",
+  "tts_next_sentence": "sentence ›",
+  "tts_prev_page": "‹ page",
+  "tts_next_page": "page ›",
+  "tts_voice": "Voice",
+  "tts_speed": "Speed",
+  "tts_default_voice": "System voice"
 }

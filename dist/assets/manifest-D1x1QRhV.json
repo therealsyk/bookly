@@ -1,0 +1,10 @@
+{
+  "name": "Bookly",
+  "short_name": "Bookly",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#0f1115",
+  "background_color": "#0f1115",
+  "description": "Read and listen to public-domain books.",
+  "icons": []
+}

@@ -1,5 +1,16 @@
-// Bookly PWA shell. All visible text goes through t(key) with locales/<lang>.json.
+// Bookly PWA shell (100% client-side, IndexedDB - no backend calls).
+// All visible text goes through t(key) with locales/<lang>.json.
 // Language: "auto" (default) follows navigator.languages; user can pin a language in Settings.
+
+import { openDb, listBooks, deleteBook, getPrefs, savePrefs as dbSavePrefs, getPages, getProgress, saveProgress, getJob } from "./db.js";
+import { searchBooks } from "./search.js";
+import { addFromSource, importTextFile } from "./downloader.js";
+import { importPdf } from "./pdfImport.js";
+import { listTracks } from "./db.js";
+import * as ispsn from "./sources/ispsn.js";
+import { openReader } from "./pages/reader.js";
+import { openPlayer } from "./pages/player.js";
+import { openTts } from "./pages/tts.js";
 
 const AVAILABLE_LANGS = ["pt-PT", "en"]; // must match frontend/locales/*.json
 let locale = {};
@@ -41,27 +52,15 @@ function t(key) {
   return locale[key] || key;
 }
 
-// --- API helpers --------------------------------------------------------------
-
-async function api(path, options) {
-  const res = await fetch(path, options);
-  if (!res.ok) return null;
-  return res.json();
-}
+// --- Prefs (IndexedDB, no network) ------------------------------------------
 
 async function loadPrefs() {
-  const data = await api("/api/prefs");
-  prefs = data || { ui_language: "auto", genres: [], book_languages: [], format: "both", authors: [], onboarded: false };
+  prefs = await getPrefs();
   return prefs;
 }
 
 async function savePrefs(payload) {
-  const res = await fetch("/api/prefs", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (res.ok) prefs = await res.json();
+  prefs = await dbSavePrefs(payload);
   return prefs;
 }
 
@@ -89,8 +88,7 @@ function fmtTime(sec) {
 async function renderLibrary() {
   const list = document.getElementById("book-list");
   const empty = document.getElementById("library-empty");
-  const data = await api("/api/library");
-  const books = (data && data.books) || [];
+  const books = await listBooks();
   empty.hidden = books.length > 0;
   empty.textContent = t("empty_library");
   list.innerHTML = "";
@@ -126,11 +124,12 @@ async function renderLibrary() {
     // Position line: text -> "Page X of Y", audio -> "Chapter X • mm:ss".
     const meta = document.createElement("span");
     meta.className = "row-meta muted";
-    if (b.mode === "listen") {
-      meta.textContent = `${t("chapter")} ${b.chapter_index || 1} • ${fmtTime(b.position)}`;
-    } else if (b.pages) {
-      meta.textContent = `${t("page")} ${(b.current_page || 0) + 1} ${t("of")} ${b.pages}`;
-    } else if (b.kind === "audio") {
+    const prog = b.progress;
+    if (prog && prog.mode === "listen") {
+      meta.textContent = `${t("chapter")} ${(prog.chapter_index || 0) + 1} • ${fmtTime(prog.position)}`;
+    } else if (prog && prog.mode === "read") {
+      meta.textContent = `${t("page")} ${(prog.position || 0) + 1} ${t("of")} ${b.total_pages || "?"}`;
+    } else {
       meta.textContent = t("not_started");
     }
     info.appendChild(meta);
@@ -139,7 +138,7 @@ async function renderLibrary() {
     bar.className = "progress-bar";
     const fill = document.createElement("div");
     fill.className = "progress-fill";
-    fill.style.width = `${Math.min(100, Math.round((b.progress_percent || 0) * 100))}%`;
+    fill.style.width = `${Math.min(100, Math.round(((b.progress && b.progress.percent) || 0) * 100))}%`;
     bar.appendChild(fill);
     info.appendChild(bar);
 
@@ -171,7 +170,7 @@ function confirmDelete(book) {
   overlay.hidden = false;
   document.getElementById("confirm-cancel").onclick = () => { overlay.hidden = true; };
   document.getElementById("confirm-yes").onclick = async () => {
-    await api(`/api/library/${book.id}`, { method: "DELETE" });
+    await deleteBook(book.id);
     overlay.hidden = true;
     renderLibrary();
   };
@@ -194,8 +193,9 @@ async function openDetail(book) {
   const readBtn = document.getElementById("action-read");
   const listenBtn = document.getElementById("action-listen");
   const ttsBtn = document.getElementById("action-tts");
-  readBtn.hidden = !book.pages;
-  listenBtn.hidden = book.kind !== "audio" && book.kind !== "both";
+  // Phase 6b: pages/audio live in IndexedDB now.
+  readBtn.hidden = book.kind === "audio";
+  listenBtn.hidden = !(book.kind === "audio" || book.kind === "both");
   ttsBtn.textContent = t("voice_ai");
   readBtn.textContent = t("read");
   listenBtn.textContent = t("listen");
@@ -203,7 +203,7 @@ async function openDetail(book) {
   // Reader (Phase 3) and player (Phase 4); TTS screen is Phase 5.
   readBtn.onclick = () => { overlay.hidden = true; openReader(book); };
   listenBtn.onclick = () => { overlay.hidden = true; openPlayer(book); };
-  ttsBtn.onclick = () => { overlay.hidden = true; };
+  ttsBtn.onclick = () => { overlay.hidden = true; openTts(book); };
 
   overlay.hidden = false;
   overlay.querySelector(".detail-card").onclick = (e) => {
@@ -265,16 +265,13 @@ function bookCard(item) {
     addBtn.disabled = true;
     addBtn.textContent = t("adding");
     bar.hidden = false;
-    const res = await api("/api/library/add", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source: src.source,
-        source_id: src.source_id,
-        title: item.title,
-        author: item.author,
-        language: item.language,
-      }),
+    // Client-side download: text fetched, paginated and stored in IndexedDB.
+    const res = await addFromSource({
+      source: src.source,
+      source_id: src.source_id,
+      title: item.title,
+      author: item.author,
+      language: item.language,
     });
     if (!res) {
       addBtn.disabled = false;
@@ -282,17 +279,20 @@ function bookCard(item) {
       bar.hidden = true;
       return;
     }
-    const jobId = res.job_id;
-    // Poll the job until it finishes (or errors out).
-    for (let i = 0; i < 120; i++) {
-      const job = await api(`/api/library/jobs/${jobId}`);
+    // Poll the job store until it finishes (or errors out).
+    let job = null;
+    for (let i = 0; i < 60; i++) {
+      job = await getJob(res.book.id); // one job per book in IndexedDB
       if (!job) break;
-      fill.style.width = `${Math.min(100, Math.round((job.progress || 0) * 100))}%`;
+      fill.style.width = `${Math.min(100, Math.round((job.percent || 0)))}%`;
       if (job.status === "done" || job.status === "error") break;
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 500));
     }
     addBtn.textContent = job && job.status === "done" ? t("added") : t("add");
-    if (job && job.status === "error") addBtn.disabled = false;
+    if (job && job.status === "error") {
+      addBtn.disabled = false;
+      addBtn.textContent = t("retry");
+    }
   });
 
   info.appendChild(addBtn);
@@ -332,51 +332,80 @@ async function renderSearch() {
   if (!q) {
     resultsEl.innerHTML = "";
     recEl.hidden = false;
-    const data = await api("/api/recommendations");
+    // Recommendations reuse the client search with genre terms from prefs.
+    const genres = (prefs && prefs.genres && prefs.genres.length) ? prefs.genres : ["classics"];
+    const lang = uiLanguage.split("-")[0];
     recEl.innerHTML = "";
     const heading = document.createElement("h2");
     heading.textContent = t("recommended_for_you");
     recEl.appendChild(heading);
-    if (!data || !(data.groups || {}).genres) {
-      // no groups: flat carousel
-      const carousel = document.createElement("div");
-      carousel.className = "carousel";
-      for (const item of (data && data.results) || []) carousel.appendChild(bookCard(item));
-      recEl.appendChild(carousel);
-      if (!(data && data.results && data.results.length)) {
+    for (const genre of genres) {
+      let items = [];
+      try {
+        const data = await searchBooks(genre, lang);
+        items = sortResults(data.results || [], prefs).slice(0, 12);
+      } catch (err) {
+        // Source failure is reported, not hidden.
         const p = document.createElement("p");
         p.className = "muted";
-        p.textContent = t("no_results");
+        p.textContent = `${genre}: ${err.message}`;
         recEl.appendChild(p);
+        continue;
       }
-    } else {
-      for (const [genre, items] of Object.entries(data.groups)) {
-        if (!items.length) continue;
-        const h = document.createElement("h3");
-        h.textContent = t("genre_" + genre);
-        recEl.appendChild(h);
-        const carousel = document.createElement("div");
-        carousel.className = "carousel";
-        for (const item of sortResults(items, prefs)) carousel.appendChild(bookCard(item));
-        recEl.appendChild(carousel);
-      }
+      if (!items.length) continue;
+      const h = document.createElement("h3");
+      h.textContent = t("genre_" + genre);
+      recEl.appendChild(h);
+      const carousel = document.createElement("div");
+      carousel.className = "carousel";
+      for (const item of items) carousel.appendChild(bookCard(item));
+      recEl.appendChild(carousel);
     }
     return;
   }
 
   recEl.hidden = true;
   const lang = uiLanguage.split("-")[0];
-  const data = await api(`/api/search?q=${encodeURIComponent(q)}&lang=${encodeURIComponent(lang)}`);
+  const data = await searchBooks(q, lang);
   resultsEl.innerHTML = "";
-  const results = sortResults((data && data.results) || [], prefs);
+  const results = sortResults(data.results || [], prefs);
   if (!results.length) {
     const p = document.createElement("p");
     p.className = "muted";
     p.textContent = t("no_results");
     resultsEl.appendChild(p);
-    return;
   }
   for (const item of results) resultsEl.appendChild(bookCard(item));
+
+  // Personal source "Biblioteca ISPSN": separate section, only when enabled
+  // and a CORS proxy is configured (site sends no ACAO header).
+  const ispsnEl = document.getElementById("ispsn-results");
+  const ispsnOn = prefs && prefs.personal_sources && prefs.personal_sources.ispsn;
+  if (ispsnOn && data.results.length) {
+    try {
+      const items = await ispsn.search(q);
+      ispsnEl.hidden = false;
+      ispsnEl.innerHTML = "";
+      const h = document.createElement("h3");
+      h.textContent = t("ispsn_section");
+      ispsnEl.appendChild(h);
+      for (const item of items) {
+        const card = bookCard(item);
+        // ISPSN: no direct download unless robots.txt allows it; open the page.
+        const btn = card.querySelector(".add-btn");
+        if (btn) {
+          btn.textContent = t("open_in_browser");
+          btn.onclick = () => window.open(item.url, "_blank");
+        }
+        ispsnEl.appendChild(card);
+      }
+    } catch (err) {
+      ispsnEl.hidden = false;
+      ispsnEl.innerHTML = `<p class="muted">${err.message}</p>`;
+    }
+  } else {
+    ispsnEl.hidden = true;
+  }
 }
 
 // Debounced search: run 400 ms after the user stops typing.
@@ -523,11 +552,73 @@ async function renderSettings() {
   redoBtn.textContent = t("onboarding_title");
   redoBtn.addEventListener("click", openOnboarding);
   editor.appendChild(redoBtn);
+
+  // Personal sources toggle (ISPSN, off by default).
+  const personalLabel = document.createElement("label");
+  personalLabel.textContent = t("personal_sources");
+  const personalToggle = document.createElement("button");
+  personalToggle.className = "btn ghost";
+  personalToggle.textContent = prefs.personal_sources && prefs.personal_sources.ispsn ? t("on") : t("off");
+  personalToggle.addEventListener("click", async () => {
+    const next = !(prefs.personal_sources && prefs.personal_sources.ispsn);
+    await savePrefs({ personal_sources: { ispsn: next } });
+    renderSettings();
+  });
+  editor.appendChild(personalLabel);
+  editor.appendChild(personalToggle);
+
+  // Import PDF/TXT/EPUB from the device.
+  const importBtn = document.getElementById("pdf-import-btn");
+  const fileInput = document.getElementById("pdf-import");
+  importBtn.textContent = t("import_pdf");
+  importBtn.onclick = async () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    importBtn.disabled = true;
+    importBtn.textContent = t("importing");
+    try {
+      let result;
+      if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
+        result = await importPdf(file);
+      } else if (/\.txt$/i.test(file.name)) {
+        result = await importTextFile(file.name, await file.text());
+      } else {
+        throw new Error(t("import_unsupported"));
+      }
+      importBtn.textContent = t("imported");
+      if (result && !result.deduplicated) setView("library");
+    } catch (err) {
+      importBtn.textContent = err.message || t("import_failed");
+    } finally {
+      importBtn.disabled = false;
+    }
+  };
+
+  // Backup: export IndexedDB to JSON and restore it.
+  const backupBtn = document.createElement("button");
+  backupBtn.className = "btn ghost";
+  backupBtn.textContent = t("backup_export");
+  backupBtn.addEventListener("click", async () => {
+    const db = await openDb();
+    const dump = {};
+    for (const name of ["books", "audio_tracks", "progress", "prefs", "pages"]) {
+      dump[name] = await new Promise((res) => {
+        db.transaction(name).objectStore(name).getAll().onsuccess = (e) => res(e.target.result || []);
+      });
+    }
+    const blob = new Blob([JSON.stringify(dump, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "bookly-backup.json";
+    a.click();
+  });
+  editor.appendChild(backupBtn);
 }
 
 // --- Init -----------------------------------------------------------------
 
 async function init() {
+  await openDb();
   await loadPrefs();
   resolveLanguage(prefs);
   await loadLocale(uiLanguage);

@@ -1,7 +1,11 @@
-// Bookly audio player (Phase 4). <audio>-based, with chapter list, ±15s,
-// speed 0.75-2x, sleep timer, Media Session API lock-screen controls,
-// position saved every 5 s and resume on reopen, next-chapter preload and
-// auto-advance. Audio is served by the backend with Range support (iOS/Safari).
+// Bookly audio player (Phase 4, now fully client-side). <audio> streams MP3s
+// directly from LibriVox/Archive mirrors (they send ACAO=* so iOS/Safari
+// Range requests work without our backend). Chapter list, ±15s, speed 0.75-2x,
+// sleep timer, Media Session API lock-screen controls, position saved every 5 s
+// to IndexedDB and resumed on reopen, next-chapter preload and auto-advance.
+
+import { listTracks, saveProgress, getProgress, getPrefs } from "../db.js";
+import { savePrefs } from "../db.js";
 
 let activePlayer = null;
 
@@ -23,8 +27,7 @@ async function openPlayer(book) {
   titleEl.textContent = book.title;
   if (book.cover_url) { cover.src = book.cover_url; cover.hidden = false; } else { cover.hidden = true; }
 
-  const data = await fetch(`/api/audio/${book.id}`).then(r => r.json()).catch(() => null);
-  const tracks = (data && data.tracks) || [];
+  const tracks = await listTracks(book.id);
   if (!tracks.length) {
     chaptersEl.textContent = t("no_audio");
     overlay.hidden = false;
@@ -47,8 +50,8 @@ async function openPlayer(book) {
   let startTrack = 0;
   let startPos = 0;
   try {
-    const prog = await fetch(`/api/progress/${book.id}`).then(r => r.json());
-    const listen = (prog.progress || []).find(p => p.mode === "listen");
+    const rows = await getProgress(book.id);
+    const listen = rows.find(p => p.mode === "listen");
     if (listen) {
       startTrack = Math.min(tracks.length - 1, Math.max(0, listen.chapter_index));
       startPos = listen.position || 0;
@@ -68,11 +71,7 @@ async function openPlayer(book) {
     const total = tracks.reduce((sum, tr) => sum + (tr.duration_sec || 0), 0) || 0;
     const elapsedBefore = tracks.slice(0, currentTrack).reduce((sum, tr) => sum + (tr.duration_sec || 0), 0);
     const percent = total ? (elapsedBefore + audio.currentTime) / total : 0;
-    fetch(`/api/progress/${book.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "listen", position: audio.currentTime, chapter_index: currentTrack, percent }),
-    }).catch(() => {});
+    saveProgress(book.id, "listen", { position: audio.currentTime, chapter_index: currentTrack, percent }).catch(() => {});
   }
 
   let currentTrack = startTrack;
@@ -142,13 +141,13 @@ async function openPlayer(book) {
     overlay.hidden = true;
   };
 
-  // Restore speed/sleep from saved prefs and persist changes back.
-  speedSel.value = String(prefs && prefs.speed ? prefs.speed : 1);
-  sleepSel.value = String(prefs && prefs.sleep_minutes ? prefs.sleep_minutes : 0);
-  const savePlayerPrefs = () => fetch("/api/prefs", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ speed: parseFloat(speedSel.value) || 1, sleep_minutes: parseInt(sleepSel.value, 10) || 0 }),
+  // Restore speed/sleep from saved prefs and persist changes back to IndexedDB.
+  const currentPrefs = await getPrefs();
+  speedSel.value = String(currentPrefs.speed || 1);
+  sleepSel.value = String(currentPrefs.sleep_minutes || 0);
+  const savePlayerPrefs = () => savePrefs({
+    speed: parseFloat(speedSel.value) || 1,
+    sleep_minutes: parseInt(sleepSel.value, 10) || 0,
   }).catch(() => {});
   speedSel.addEventListener("change", savePlayerPrefs);
   sleepSel.addEventListener("change", savePlayerPrefs);
@@ -157,5 +156,4 @@ async function openPlayer(book) {
   activePlayer = { audio, saveProgress };
 }
 
-// Expose for app.js.
-window.openPlayer = openPlayer;
+export { openPlayer };

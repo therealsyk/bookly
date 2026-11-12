@@ -59,5 +59,16 @@
   "sleep_off": "Desligado",
   "speed": "Velocidade",
   "chapters": "Capítulos",
-  "no_audio": "Este livro ainda não tem áudio disponível."
+  "no_audio": "Este livro ainda não tem áudio disponível.",
+  "tts_no_voice": "Não encontrámos uma voz em português no teu dispositivo. Vai a Definições > Acessibilidade > Conteúdo Falado > Vozes e adiciona uma voz pt-PT. Vamos usar a voz por defeito até lá.",
+  "tts_keep_screen": "Mantém o ecrã ativo para ouvir sem interrupções.",
+  "tts_play": "▶",
+  "tts_pause": "❚❚",
+  "tts_prev_sentence": "‹ frase",
+  "tts_next_sentence": "frase ›",
+  "tts_prev_page": "‹ página",
+  "tts_next_page": "página ›",
+  "tts_voice": "Voz",
+  "tts_speed": "Velocidade",
+  "tts_default_voice": "Voz do sistema"
 }

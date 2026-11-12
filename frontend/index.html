@@ -22,12 +22,17 @@
     <section id="search" class="search" hidden>
       <input id="search-input" type="search" autocomplete="off">
       <div id="search-results"></div>
+      <div id="ispsn-results" hidden></div>
       <div id="recommendations" hidden></div>
     </section>
 
     <section id="settings" class="settings" hidden>
       <h2 id="settings-title"></h2>
       <div id="prefs-editor"></div>
+      <div class="import-row">
+        <input id="pdf-import" type="file" accept="application/pdf,.txt,.epub">
+        <button id="pdf-import-btn" class="btn primary"></button>
+      </div>
     </section>
   </main>
 
@@ -103,6 +108,30 @@
     </div>
   </div>
 
+  <div id="tts" class="tts-overlay" hidden>
+    <div class="tts-topbar">
+      <button id="tts-close" class="btn ghost"></button>
+      <span id="tts-title"></span>
+    </div>
+    <p id="tts-warning" class="tts-warning" hidden></p>
+    <div class="tts-body" id="tts-body"></div>
+    <div class="tts-controls">
+      <button id="tts-prev-sentence" class="btn ghost"></button>
+      <button id="tts-playpause" class="btn primary"></button>
+      <button id="tts-next-sentence" class="btn ghost"></button>
+    </div>
+    <div class="tts-meta">
+      <select id="tts-voice" aria-label="voice"></select>
+      <input id="tts-speed" type="range" min="0.5" max="2" step="0.1" value="1" aria-label="speed">
+      <span id="tts-speed-label"></span>
+    </div>
+    <div class="tts-pages">
+      <button id="tts-prev-page" class="btn ghost"></button>
+      <span id="tts-counter"></span>
+      <button id="tts-next-page" class="btn ghost"></button>
+    </div>
+  </div>
+
   <div id="player" class="player-overlay" hidden>
     <div class="player-topbar">
       <button id="player-close" class="btn ghost"></button>
@@ -136,8 +165,6 @@
     </div>
   </div>
 
-  <script src="/pages/reader.js"></script>
-  <script src="/pages/player.js"></script>
-  <script src="/app.js"></script>
+  <script type="module" src="/app.js"></script>
 </body>
 </html>
