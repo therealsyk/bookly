@@ -184,6 +184,16 @@ export async function getPages(book_id) {
   return rec ? rec.pages : [];
 }
 
+// Delete cached text only, leaving progress untouched (Prompt 8 requirement).
+export async function deletePagesOnly(book_id) {
+  await del("pages", book_id);
+}
+
+export async function deleteAllPages() {
+  const recs = await getAll("pages");
+  for (const r of recs) await del("pages", r.book_id);
+}
+
 // --- Audio tracks ---------------------------------------------------------
 
 export async function addTrack({ book_id, chapter_index = 0, title = "", url, duration_sec = null }) {
@@ -206,8 +216,10 @@ const DEFAULT_PREFS = {
   onboarded: false,
   sleep_minutes: null,
   speed: 1,
-  reader: { font_size: 16, font_family: "serif", theme: "light" },
+  reader: { font_size: "normal", font_family: "serif", theme: "light" },
   personal_sources: { ispsn: false },
+  theme: "auto",
+  tts: { voice_name: null, lang: "pt-PT", rate: 1 },
 };
 
 export async function getPrefs() {

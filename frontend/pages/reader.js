@@ -2,7 +2,7 @@
 // Imported by app.js as a module; all visible text goes through t() which
 // lives in the main shell. Settings persist in localStorage and in prefs.
 
-import { getPages, saveProgress } from "../db.js";
+import { getPages, saveProgress, getPrefs } from "../db.js";
 import { savePrefs } from "../db.js";
 
 const FONT_SIZES = ["small", "normal", "large"];
@@ -58,7 +58,7 @@ function openReader(book) {
   const pageEl = document.getElementById("reader-page-text");
   const counterEl = document.getElementById("reader-counter");
   const jumpInput = document.getElementById("reader-jump");
-  const settings = getReaderSettings();
+  let settings = getReaderSettings();
 
   let pages = [];
   let current = 0; // zero-based index of the visible page
@@ -110,6 +110,11 @@ function openReader(book) {
   }
 
   async function load() {
+    // Prefer settings stored in IndexedDB prefs (set from the Settings screen).
+    try {
+      const p = await getPrefs();
+      if (p && p.reader) settings = { ...settings, ...p.reader };
+    } catch (err) { /* fall back to localStorage */ }
     applySettings();
     pages = await getPages(book.id);
     if (!pages || !pages.length) {

@@ -19,6 +19,24 @@
   }
 }
 
+/* Explicit theme overrides (set via Settings). "auto" uses the media query above. */
+html[data-theme="light"] {
+  --bg: #f6f7f9;
+  --fg: #14171c;
+  --card: #ffffff;
+  --accent: #2f6fed;
+  --danger: #d64545;
+  --muted: #6b7280;
+}
+html[data-theme="dark"] {
+  --bg: #0f1115;
+  --fg: #e7e9ee;
+  --card: #1a1d24;
+  --accent: #4f8ef7;
+  --danger: #e06c6c;
+  --muted: #9aa3b0;
+}
+
 * { box-sizing: border-box; }
 
 body {

@@ -36,6 +36,7 @@ The app runs entirely in the browser with IndexedDB; the old Python backend live
 ## Test
 
 ```bat
-npm run test    # Vitest (frontend parity, TTS, ISPSN parser)
+npm run test    # Vitest (frontend parity, TTS, settings/backup, ISPSN parser)
+python tools/check_locales.py         # verify every locale has all reference keys
 cd legacy && python -m pytest tests   # legacy backend suite
 ```

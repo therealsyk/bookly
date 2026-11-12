@@ -11,6 +11,8 @@ import * as ispsn from "./sources/ispsn.js";
 import { openReader } from "./pages/reader.js";
 import { openPlayer } from "./pages/player.js";
 import { openTts } from "./pages/tts.js";
+import { storageEstimate, countBooks, clearBookText, clearAllText, applyTheme } from "./settings.js";
+import { exportBackup, validateBackup, importBackup } from "./backup.js";
 
 const AVAILABLE_LANGS = ["pt-PT", "en"]; // must match frontend/locales/*.json
 let locale = {};
@@ -538,8 +540,7 @@ async function renderSettings() {
   }
   langSelect.value = prefs.ui_language || "auto";
   langSelect.addEventListener("change", async () => {
-    prefs.ui_language = langSelect.value;
-    await savePrefs(prefs);
+    await savePrefs({ ui_language: langSelect.value });
     resolveLanguage(prefs);
     await loadLocale(uiLanguage); // apply language without reloading the page
     setView("settings");
@@ -547,13 +548,80 @@ async function renderSettings() {
   editor.appendChild(langLabel);
   editor.appendChild(langSelect);
 
+  // Theme (light / dark / auto).
+  const themeLabel = document.createElement("label");
+  themeLabel.textContent = t("theme");
+  const themeSelect = document.createElement("select");
+  for (const opt of [["light", "theme_light"], ["dark", "theme_dark"], ["auto", "theme_auto"]]) {
+    const o = document.createElement("option");
+    o.value = opt[0];
+    o.textContent = t(opt[1]);
+    themeSelect.appendChild(o);
+  }
+  themeSelect.value = prefs.theme || "auto";
+  themeSelect.addEventListener("change", async () => {
+    await savePrefs({ theme: themeSelect.value });
+    applyTheme(themeSelect.value);
+  });
+  editor.appendChild(themeLabel);
+  editor.appendChild(themeSelect);
+
+  // Font size for the reader.
+  const fontLabel = document.createElement("label");
+  fontLabel.textContent = t("font_size");
+  const fontSelect = document.createElement("select");
+  for (const opt of [["small", "font_small"], ["normal", "font_normal"], ["large", "font_large"]]) {
+    const o = document.createElement("option");
+    o.value = opt[0];
+    o.textContent = t(opt[1]);
+    fontSelect.appendChild(o);
+  }
+  fontSelect.value = (prefs.reader && prefs.reader.font_size) || "normal";
+  fontSelect.addEventListener("change", async () => {
+    await savePrefs({ reader: { ...(prefs.reader || {}), font_size: fontSelect.value } });
+  });
+  editor.appendChild(fontLabel);
+  editor.appendChild(fontSelect);
+
+  // TTS voice + rate defaults.
+  const ttsLabel = document.createElement("label");
+  ttsLabel.textContent = t("tts_voice");
+  const ttsVoiceSelect = document.createElement("select");
+  const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  const defaultOpt = document.createElement("option");
+  defaultOpt.value = "";
+  defaultOpt.textContent = t("tts_default_voice");
+  ttsVoiceSelect.appendChild(defaultOpt);
+  for (const v of voices) {
+    const o = document.createElement("option");
+    o.value = v.name;
+    o.textContent = `${v.name} (${v.lang})`;
+    ttsVoiceSelect.appendChild(o);
+  }
+  ttsVoiceSelect.value = (prefs.tts && prefs.tts.voice_name) || "";
+  ttsVoiceSelect.addEventListener("change", async () => {
+    await savePrefs({ tts: { ...(prefs.tts || {}), voice_name: ttsVoiceSelect.value || null, lang: "pt-PT" } });
+  });
+  const rateInput = document.createElement("input");
+  rateInput.type = "range";
+  rateInput.min = "0.5";
+  rateInput.max = "2";
+  rateInput.step = "0.1";
+  rateInput.value = String((prefs.tts && prefs.tts.rate) || 1);
+  rateInput.addEventListener("change", async () => {
+    await savePrefs({ tts: { ...(prefs.tts || {}), rate: Number(rateInput.value) } });
+  });
+  editor.appendChild(ttsLabel);
+  editor.appendChild(ttsVoiceSelect);
+  editor.appendChild(rateInput);
+
   const redoBtn = document.createElement("button");
   redoBtn.className = "btn ghost";
   redoBtn.textContent = t("onboarding_title");
   redoBtn.addEventListener("click", openOnboarding);
   editor.appendChild(redoBtn);
 
-  // Personal sources toggle (ISPSN, off by default).
+  // Personal sources toggle (ISPSN, off by default) with the personal-use warning.
   const personalLabel = document.createElement("label");
   personalLabel.textContent = t("personal_sources");
   const personalToggle = document.createElement("button");
@@ -566,8 +634,14 @@ async function renderSettings() {
   });
   editor.appendChild(personalLabel);
   editor.appendChild(personalToggle);
+  if (prefs.personal_sources && prefs.personal_sources.ispsn) {
+    const warn = document.createElement("p");
+    warn.className = "muted";
+    warn.textContent = t("personal_sources_warning");
+    editor.appendChild(warn);
+  }
 
-  // Import PDF/TXT/EPUB from the device.
+  // Import PDF/TXT from the device.
   const importBtn = document.getElementById("pdf-import-btn");
   const fileInput = document.getElementById("pdf-import");
   importBtn.textContent = t("import_pdf");
@@ -594,18 +668,52 @@ async function renderSettings() {
     }
   };
 
-  // Backup: export IndexedDB to JSON and restore it.
+  // Storage accounting.
+  const storageTitle = document.createElement("h3");
+  storageTitle.textContent = t("storage_title");
+  editor.appendChild(storageTitle);
+  const est = await storageEstimate();
+  const counts = await countBooks();
+  const used = est.usage != null ? `${(est.usage / 1048576).toFixed(1)} MB` : "?";
+  const quota = est.quota != null ? `${(est.quota / 1048576).toFixed(1)} MB` : "?";
+  const storageInfo = document.createElement("p");
+  storageInfo.className = "muted";
+  storageInfo.textContent = `${t("storage_used")}: ${used} · ${t("storage_quota")}: ${quota} · ${t("books_count")}: ${counts.total} · ${t("pdfs_count")}: ${counts.pdfs}`;
+  editor.appendChild(storageInfo);
+  const iosNote = document.createElement("p");
+  iosNote.className = "muted";
+  iosNote.textContent = t("ios_storage_note");
+  editor.appendChild(iosNote);
+
+  // Clear cached text (per book or all) without touching progress.
+  const booksForClear = await listBooks();
+  for (const b of booksForClear) {
+    const btn = document.createElement("button");
+    btn.className = "btn ghost";
+    btn.textContent = `${t("clear_text_book")}: ${b.title}`;
+    btn.addEventListener("click", async () => {
+      if (!confirm(t("clear_text_confirm"))) return;
+      await clearBookText(b.id);
+      renderSettings();
+    });
+    editor.appendChild(btn);
+  }
+  const clearAllBtn = document.createElement("button");
+  clearAllBtn.className = "btn ghost";
+  clearAllBtn.textContent = t("clear_text_all");
+  clearAllBtn.addEventListener("click", async () => {
+    if (!confirm(t("clear_text_confirm"))) return;
+    await clearAllText();
+    renderSettings();
+  });
+  editor.appendChild(clearAllBtn);
+
+  // Backup export.
   const backupBtn = document.createElement("button");
   backupBtn.className = "btn ghost";
   backupBtn.textContent = t("backup_export");
   backupBtn.addEventListener("click", async () => {
-    const db = await openDb();
-    const dump = {};
-    for (const name of ["books", "audio_tracks", "progress", "prefs", "pages"]) {
-      dump[name] = await new Promise((res) => {
-        db.transaction(name).objectStore(name).getAll().onsuccess = (e) => res(e.target.result || []);
-      });
-    }
+    const dump = await exportBackup();
     const blob = new Blob([JSON.stringify(dump, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -613,6 +721,44 @@ async function renderSettings() {
     a.click();
   });
   editor.appendChild(backupBtn);
+
+  // Backup import with preview + confirmation.
+  const restoreInput = document.createElement("input");
+  restoreInput.type = "file";
+  restoreInput.accept = "application/json,.json";
+  const restoreBtn = document.createElement("button");
+  restoreBtn.className = "btn ghost";
+  restoreBtn.textContent = t("backup_import");
+  let pendingData = null;
+  restoreBtn.addEventListener("click", async () => {
+    const file = restoreInput.files && restoreInput.files[0];
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      const validation = validateBackup(data);
+      if (!validation.ok) {
+        restoreBtn.textContent = t("backup_invalid");
+        return;
+      }
+      pendingData = data;
+      const msg = t("backup_preview")
+        .replace("{books}", validation.preview.books)
+        .replace("{progress}", validation.preview.progress)
+        .replace("{pages}", validation.preview.pages);
+      let text = msg;
+      if (validation.preview.personal_books > 0) {
+        text += " " + t("backup_personal_warning").replace("{personal}", validation.preview.personal_books);
+      }
+      if (!confirm(text)) return;
+      await importBackup(pendingData);
+      restoreBtn.textContent = t("cleared"); // reused as generic success label
+      renderLibrary();
+    } catch (err) {
+      restoreBtn.textContent = err.message || t("backup_invalid");
+    }
+  });
+  editor.appendChild(restoreInput);
+  editor.appendChild(restoreBtn);
 }
 
 // --- Init -----------------------------------------------------------------
@@ -621,6 +767,7 @@ async function init() {
   await openDb();
   await loadPrefs();
   resolveLanguage(prefs);
+  applyTheme(prefs.theme || "auto");
   await loadLocale(uiLanguage);
   document.getElementById("app-title").textContent = t("app_name");
   document.querySelectorAll(".nav-btn").forEach((btn) => {
