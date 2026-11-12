@@ -184,6 +184,7 @@ function openTts(book) {
   }
 
   async function load() {
+    const prefs = await loadPrefs();
     pages = await getPages(book.id);
     if (!pages || !pages.length) {
       document.getElementById("tts-title").textContent = book.title;
@@ -193,8 +194,12 @@ function openTts(book) {
     }
 
     const voices = await loadVoices();
+    // Prefer the voice chosen in Settings (prefs.tts.voice_name), then the
+    // best native pt-PT voice.
+    const savedName = prefs && prefs.tts && prefs.tts.voice_name;
+    const saved = savedName ? voices.find((v) => v.name === savedName) : null;
     const resolved = resolveVoice(voices, "pt-PT");
-    voice = resolved.voice;
+    voice = saved || resolved.voice;
     if (!resolved.hasNativeVoice) {
       warningEl.textContent = t("tts_no_voice");
       warningEl.hidden = false;
@@ -241,7 +246,14 @@ function openTts(book) {
     }
     voiceSelect.onchange = () => {
       const chosen = voices[Number(voiceSelect.value)];
-      if (chosen) voice = chosen;
+      if (chosen) {
+        voice = chosen;
+        // Persist the choice so Settings' default voice stays in sync.
+        getPrefs().then((p) => {
+          p.tts = { ...(p.tts || {}), voice_name: chosen.name };
+          savePrefs({ tts: p.tts }).catch(() => {});
+        });
+      }
     };
 
     speedInput.oninput = () => {

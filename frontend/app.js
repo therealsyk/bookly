@@ -804,7 +804,7 @@ window.addEventListener("online", showOfflineBanner);
 window.addEventListener("offline", showOfflineBanner);
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js").then((registration) => {
+  navigator.serviceWorker.register("./sw.js").then((registration) => {
     // Ask before activating a new version (Prompt 9 requirement).
     registration.onupdatefound = () => {
       const installing = registration.installing;

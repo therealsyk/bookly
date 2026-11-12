@@ -6,39 +6,19 @@ const SHELL_CACHE = "bookly-shell";
 const AUDIO_CACHE = "bookly-audio";
 const MAX_AUDIO_BYTES = 500 * 1024 * 1024; // 500 MB cap
 
-// Shell assets needed to boot the app offline. Relative URLs only.
+// Shell assets needed to boot the app offline. Relative URLs only, so they
+// work on GitHub Pages (repo subpath) and locally. The install step fetches
+// each one and skips any that 404 (e.g. hashed/bundled module names), so a
+// missing entry never aborts the whole precache.
 const SHELL = [
-  "/",
-  "/index.html",
-  "/styles.css",
-  "/app.js",
-  "/manifest.json",
-  "/sw.js",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/pages/reader.js",
-  "/pages/player.js",
-  "/pages/tts.js",
-  "/pages/sentences.js",
-  "/db.js",
-  "/search.js",
-  "/paginate.js",
-  "/progress.js",
-  "/audio.js",
-  "/settings.js",
-  "/backup.js",
-  "/config.js",
-  "/downloader.js",
-  "/pdfImport.js",
-  "/migrate.js",
-  "/sources/librivox.js",
-  "/sources/gutendex.js",
-  "/sources/archive.js",
-  "/sources/openlibrary.js",
-  "/sources/googlebooks.js",
-  "/sources/ispsn.js",
-  "/locales/pt-PT.json",
-  "/locales/en.json",
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./sw.js",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
+  "./locales/pt-PT.json",
+  "./locales/en.json",
 ];
 
 function isAudio(url) {

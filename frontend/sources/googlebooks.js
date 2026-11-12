@@ -18,7 +18,7 @@ export async function search(query, lang) {
       language: info.language || lang || "en",
       cover_url: info.imageLink || null,
       has_audio: false,
-      has_text: pdfAvailable, // only PDF-available items are downloadable
+      has_text: Boolean(pdfAvailable), // only PDF-available items are downloadable
       pdf_url: pdfAvailable ? access.pdf.downloadLink : null,
       url: info.link || it.id,
       source: "googlebooks",
