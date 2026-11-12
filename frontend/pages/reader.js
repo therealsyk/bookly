@@ -37,6 +37,24 @@ function saveReaderSettings(settings) {
   }).catch(() => {});
 }
 
+// Global gestures are bound ONCE (see bindReaderGestures) and always act on the
+// reader that is currently open, so reopening a book never stacks listeners.
+let activeReader = null;
+let gesturesBound = false;
+
+function bindReaderGestures(overlay) {
+  if (gesturesBound) return;
+  gesturesBound = true;
+  let touchStartX = null;
+  overlay.addEventListener("touchstart", (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  overlay.addEventListener("touchend", (e) => {
+    if (touchStartX === null || !activeReader) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    touchStartX = null;
+    if (Math.abs(dx) > 40) activeReader.go(dx < 0 ? 1 : -1); // swipe left -> next, right -> previous
+  });
+}
+
 function openReader(book) {
   const overlay = document.getElementById("reader");
   const pageEl = document.getElementById("reader-page-text");
@@ -143,15 +161,9 @@ function openReader(book) {
     jumpInput.placeholder = t("jump_to_page");
     document.getElementById("reader-jump-btn").textContent = t("go");
 
-    // Swipe left/right changes pages.
-    let touchStartX = null;
-    overlay.addEventListener("touchstart", (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
-    overlay.addEventListener("touchend", (e) => {
-      if (touchStartX === null) return;
-      const dx = e.changedTouches[0].clientX - touchStartX;
-      touchStartX = null;
-      if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1); // swipe left -> next, right -> previous
-    });
+    // Swipe left/right changes pages (listeners bound once, routed to this reader).
+    bindReaderGestures(overlay);
+    activeReader = { go };
 
     renderPage();
     overlay.hidden = false;
@@ -163,12 +175,14 @@ function openReader(book) {
     const target = clampInt(jumpInput.value, 1, pages.length) - 1;
     if (target !== current) { current = target; renderPage(); }
   };
-  jumpInput.addEventListener("keydown", (e) => {
+  // Assigned with onkeydown (not addEventListener) so reopening replaces it.
+  jumpInput.onkeydown = (e) => {
     if (e.key === "Enter") document.getElementById("reader-jump-btn").click();
-  });
+  };
 
   function close() {
     flushProgress();
+    activeReader = null;
     overlay.hidden = true;
   }
   document.getElementById("reader-close").onclick = close;
