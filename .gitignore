@@ -7,3 +7,6 @@ __pycache__
 data/audio/
 data/books/
 data/covers/
+dist/
+node_modules/
+*.egg-info

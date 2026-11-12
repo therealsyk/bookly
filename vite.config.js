@@ -22,6 +22,8 @@ function copyStatic() {
 
 export default defineConfig({
   root: "frontend",
+  // Relative base so the app works on GitHub Pages under a repo subpath.
+  base: "./",
   build: { outDir: "../dist", emptyOutDir: true },
   publicDir: false,
   plugins: [

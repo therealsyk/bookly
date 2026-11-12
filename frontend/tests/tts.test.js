@@ -6,7 +6,7 @@ import { describe, it, expect } from "vitest";
 import "fake-indexeddb/auto";
 
 import { splitSentences } from "../pages/sentences.js";
-import { pickVoice, resolveVoice, createTtsState } from "../pages/tts.js";
+import { pickVoice, resolveVoice, selectVoice, createTtsState } from "../pages/tts.js";
 import { openDb, addBook, savePages, saveProgress, getProgress } from "../db.js";
 
 describe("sentence splitting", () => {
@@ -63,6 +63,21 @@ describe("voice selection", () => {
   it("reports no native voice when none exists", () => {
     const r = resolveVoice([{ name: "English", lang: "en-US", remote: true }], "pt-PT");
     expect(r.hasNativeVoice).toBe(false);
+  });
+
+  it("uses the voice saved in Settings when it still exists", () => {
+    const voices = [
+      { name: "Microsoft Ana", lang: "pt-PT", remote: false },
+      { name: "Daniel pt", lang: "pt-PT", remote: false },
+    ];
+    const sel = selectVoice(voices, "pt-PT", "Daniel pt");
+    expect(sel.voice.name).toBe("Daniel pt");
+  });
+
+  it("falls back to native voice if the saved one is gone", () => {
+    const voices = [{ name: "Microsoft Ana", lang: "pt-PT", remote: false }];
+    const sel = selectVoice(voices, "pt-PT", "Removed Voice");
+    expect(sel.voice.name).toBe("Microsoft Ana");
   });
 });
 

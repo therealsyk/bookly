@@ -38,6 +38,15 @@ export function resolveVoice(voices, lang = "pt-PT") {
   return { voice, hasNativeVoice: !!voice };
 }
 
+// Picks the voice to use: an explicitly saved one (from Settings) wins if it
+// still exists in the list; otherwise the best native match. Pure so tests can
+// cover the "saved voice" path without needing speechSynthesis/DOM.
+export function selectVoice(voices, lang = "pt-PT", savedName = null) {
+  const saved = savedName ? (voices || []).find((v) => v.name === savedName) : null;
+  const resolved = resolveVoice(voices, lang);
+  return { voice: saved || resolved.voice, hasNativeVoice: resolved.hasNativeVoice };
+}
+
 // --- State machine -------------------------------------------------------------
 
 function createTtsState(pages) {
@@ -197,10 +206,9 @@ function openTts(book) {
     // Prefer the voice chosen in Settings (prefs.tts.voice_name), then the
     // best native pt-PT voice.
     const savedName = prefs && prefs.tts && prefs.tts.voice_name;
-    const saved = savedName ? voices.find((v) => v.name === savedName) : null;
-    const resolved = resolveVoice(voices, "pt-PT");
-    voice = saved || resolved.voice;
-    if (!resolved.hasNativeVoice) {
+    const selection = selectVoice(voices, "pt-PT", savedName);
+    voice = selection.voice;
+    if (!selection.hasNativeVoice) {
       warningEl.textContent = t("tts_no_voice");
       warningEl.hidden = false;
     }

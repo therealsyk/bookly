@@ -30,7 +30,8 @@ describe("manifest", () => {
     const maskable = manifest.icons.find((i) => i.purpose === "maskable");
     expect(maskable).toBeTruthy();
     for (const icon of manifest.icons) {
-      const path = "frontend" + icon.src;
+      // Accept both absolute (/icons/..) and relative (./icons/..) src values.
+      const path = "frontend/" + icon.src.replace(/^\.?\/?/, "");
       expect(fs.existsSync(path)).toBe(true); // icons must actually exist on disk
       const size = fs.statSync(path).size;
       expect(size).toBeGreaterThan(0);
