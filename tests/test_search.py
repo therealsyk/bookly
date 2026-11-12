@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 import httpx
 
-from backend.db import init_db
+from backend.db import get_connection, init_db
 from backend.services.search import (
     fetch_archive,
     fetch_gutendex,
@@ -29,9 +29,8 @@ LIBRIVOX_JSON = {
         {
             "id": 1234,
             "title": "Dom Cazaril",
-            "author": "Camilo Castelo Branco",
-            "coverarturl": "https://librivox.org/img/covers/1234.jpg",
-            "url": "https://librivox.org/books/dom-cazaril/",
+            "authors": [{"first_name": "Camilo", "last_name": "Castelo Branco"}],
+            "url_librivox": "https://librivox.org/books/dom-cazaril/",
             "language": "Portuguese",
         }
     ]
@@ -163,6 +162,24 @@ def test_search_books_cache_24h():
         second = _run(search_books("Dracula", "pt", db_path=db, client=_client(fail_sources={"librivox", "gutenberg", "archive"})))
         assert second["cached"] is True
         assert len(second["results"]) == len(first["results"])
+
+
+def test_search_cache_expires_after_24h():
+    from datetime import datetime, timedelta, timezone
+
+    from backend.services.search import _cache_get
+    with tempfile.TemporaryDirectory() as tmp:
+        db = Path(tmp) / "test.db"
+        init_db(db)
+        old_ts = (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat(timespec="seconds")
+        conn = get_connection(db)
+        conn.execute(
+            "INSERT INTO search_cache (q, lang, payload, cached_at) VALUES (?, ?, ?, ?)",
+            ("Dracula", "pt", json.dumps({"query": "Dracula", "results": []}), old_ts),
+        )
+        conn.commit()
+        conn.close()
+        assert _cache_get("Dracula", "pt", db) is None  # expired entry is dropped
 
 
 def test_search_books_empty_query():

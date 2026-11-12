@@ -13,6 +13,7 @@ Results are cached in SQLite for 24 hours (search_cache table).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import unicodedata
@@ -21,7 +22,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from backend.config import ARCHIVE_BASE, GUTENDEX_BASE, LIBRIVOX_BASE
+from backend.config import ARCHIVE_BASE, GUTENDEX_BASE, LIBRIVOX_BASE, cfg
 from backend.db import get_connection
 
 CACHE_TTL_HOURS = 24
@@ -45,27 +46,30 @@ def _now_utc() -> datetime:
 # --- Per-source fetchers ------------------------------------------------------
 
 async def fetch_librivox(client: httpx.AsyncClient, q: str, lang: str) -> List[Dict[str, Any]]:
-    """LibriVox read API (no key needed). Maps the 'language' field to a code."""
+    """LibriVox audiobooks API (no key needed)."""
     params = {
-        "action": "read",
         "format": "json",
-        "field": "title,author,coverarturl,url,language",
         "search": q,
         "limit": 30,
     }
-    resp = await client.get(f"{LIBRIVOX_BASE}/rss/books.php", params=params)
+    resp = await client.get(f"{LIBRIVOX_BASE}/api/feed/audiobooks", params=params)
     resp.raise_for_status()
     data = resp.json()
     items: List[Dict[str, Any]] = []
     for b in data.get("books", []):
+        authors = b.get("authors") or []
+        author = " ".join(
+            f"{a.get('first_name', '')} {a.get('last_name', '')}".strip()
+            for a in authors if isinstance(a, dict)
+        ) or None
         items.append({
             "source": "librivox",
             "source_id": str(b.get("id", "")),
             "title": (b.get("title") or "").strip(),
-            "author": (b.get("author") or "").strip() or None,
+            "author": author,
             "language": str(b.get("language") or "").lower() or None,
-            "url": b.get("url") or "",
-            "cover_url": b.get("coverarturl") or "",
+            "url": b.get("url_librivox") or b.get("url_project") or "",
+            "cover_url": "",  # LibriVox API has no cover; Open Library fallback is used
             "has_audio": True,
             "has_text": False,
         })
@@ -97,16 +101,26 @@ async def fetch_gutendex(client: httpx.AsyncClient, q: str, lang: str) -> List[D
 
 async def fetch_archive(client: httpx.AsyncClient, q: str, lang: str) -> List[Dict[str, Any]]:
     """Internet Archive advancedsearch for mediatype:text (public domain)."""
-    query = f"title:({q}) AND mediatype:(text)"
+    query = f"title:({q}) AND mediatype:(texts)"
     params = {
-        "query": query,
+        "q": query,
         "fl": "identifier,title,creator,language,year",
         "rows": 30,
         "page": 1,
     }
+    # archive.org returns an HTML page unless output=json is explicit.
+    params["output"] = "json"
     resp = await client.get(f"{ARCHIVE_BASE}/advancedsearch.php", params=params)
     resp.raise_for_status()
-    data = resp.json()
+    try:
+        data = resp.json()
+    except ValueError as exc:
+        # Archive sometimes returns an empty/chunked body; retry once.
+        resp2 = await client.get(f"{ARCHIVE_BASE}/advancedsearch.php", params=params)
+        resp2.raise_for_status()
+        data = resp2.json() if resp2.content else {}
+        if not isinstance(data, dict):
+            raise exc
     items: List[Dict[str, Any]] = []
     for doc in data.get("response", {}).get("docs", []):
         creator = doc.get("creator")
@@ -260,10 +274,12 @@ async def search_books(
 
 
 async def asyncio_gather(client: httpx.AsyncClient, fetchers: Dict[str, Any], q: str, lang: str) -> Dict[str, Any]:
-    """Run every fetcher concurrently; per-source failures become exception values."""
-    import asyncio
-
-    tasks = {name: asyncio.create_task(fetcher(client, q, lang)) for name, fetcher in fetchers.items()}
+    """Run every fetcher concurrently; per-source failures/timeouts become exception values."""
+    timeout = float(cfg("source_timeout_sec", 10))
+    tasks = {
+        name: asyncio.create_task(asyncio.wait_for(fetcher(client, q, lang), timeout=timeout))
+        for name, fetcher in fetchers.items()
+    }
     results: Dict[str, Any] = {}
     for name, task in tasks.items():
         try:
