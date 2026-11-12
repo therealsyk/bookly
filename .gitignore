@@ -1,0 +1,9 @@
+.venv
+venv
+__pycache__
+.pytest_cache
+*.db
+*.log
+data/audio/
+data/books/
+data/covers/
