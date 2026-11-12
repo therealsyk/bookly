@@ -23,16 +23,19 @@ python -m venv .venv
 Configuration lives in `config.json` (or environment variables like `PORT`).
 No API keys are needed: all sources are public and legal.
 
-## Run
+## Run (local-first, no server)
 
 ```bat
-run.bat
+npm install
+npm run dev     # Vite dev server for the PWA
+npm run build   # static dist/ ready to serve anywhere
 ```
 
-Then open http://127.0.0.1:8000 and check http://127.0.0.1:8000/api/health.
+The app runs entirely in the browser with IndexedDB; the old Python backend lives in `legacy/backend/` (kept for reference and parity tests).
 
 ## Test
 
 ```bat
-pytest tests
+npm run test    # Vitest (frontend parity, TTS, ISPSN parser)
+cd legacy && python -m pytest tests   # legacy backend suite
 ```
