@@ -293,3 +293,57 @@ main { padding: 16px 16px 84px; }
   background: var(--card);
   color: var(--fg);
 }
+
+/* --- Audio player (Phase 4) ----------------------------------------------- */
+.player-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+}
+.player-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+.player-topbar img { width: 48px; height: 60px; border-radius: 6px; }
+.player-topbar span { flex: 1; font-weight: 600; }
+.player-chapters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+}
+.chapter-btn {
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: var(--card);
+  color: var(--fg);
+  font-size: 0.9rem;
+}
+.player-controls {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 12px;
+}
+.player-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+.player-meta select {
+  min-height: 44px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: var(--card);
+  color: var(--fg);
+}

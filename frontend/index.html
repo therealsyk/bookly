@@ -103,7 +103,41 @@
     </div>
   </div>
 
+  <div id="player" class="player-overlay" hidden>
+    <div class="player-topbar">
+      <button id="player-close" class="btn ghost"></button>
+      <img id="player-cover" alt="" hidden>
+      <span id="player-title"></span>
+    </div>
+    <div class="player-chapters" id="player-chapters"></div>
+    <audio id="player-audio" preload="auto"></audio>
+    <div class="player-controls">
+      <button id="player-back15" class="btn ghost" aria-label="back 15s">−15</button>
+      <button id="player-playpause" class="btn primary" aria-label="play/pause">▶</button>
+      <button id="player-fwd15" class="btn ghost" aria-label="forward 15s">+15</button>
+    </div>
+    <div class="player-meta">
+      <span id="player-time"></span>
+      <select id="player-speed" aria-label="speed">
+        <option value="0.75">0.75×</option>
+        <option value="1">1×</option>
+        <option value="1.25">1.25×</option>
+        <option value="1.5">1.5×</option>
+        <option value="1.75">1.75×</option>
+        <option value="2">2×</option>
+      </select>
+      <select id="player-sleep" aria-label="sleep timer">
+        <option value="0">Off</option>
+        <option value="15">15 min</option>
+        <option value="30">30 min</option>
+        <option value="45">45 min</option>
+        <option value="60">60 min</option>
+      </select>
+    </div>
+  </div>
+
   <script src="/pages/reader.js"></script>
+  <script src="/pages/player.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

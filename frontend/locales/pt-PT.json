@@ -54,5 +54,10 @@
   "close": "Fechar",
   "jump_to_page": "Ir para página",
   "go": "Ir",
-  "no_text": "Este livro ainda não tem texto disponível."
+  "no_text": "Este livro ainda não tem texto disponível.",
+  "sleep_timer": "Temporizador de sono",
+  "sleep_off": "Desligado",
+  "speed": "Velocidade",
+  "chapters": "Capítulos",
+  "no_audio": "Este livro ainda não tem áudio disponível."
 }

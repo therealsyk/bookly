@@ -25,8 +25,19 @@ VALID_FORMATS = {"audio", "text", "both"}
 
 
 def _clean_prefs(raw: Dict[str, Any]) -> Dict[str, Any]:
-    """Validate and normalize a preferences payload."""
+    """Validate and normalize a preferences payload.
+
+    Starts from the previously stored prefs so a partial update (e.g. only the
+    reader settings) never wipes unrelated fields. Invalid values in the payload
+    are dropped, keeping the last valid value.
+    """
     prefs = dict(DEFAULT_PREFS)
+    stored_raw = get_setting("prefs")
+    if stored_raw:
+        try:
+            prefs.update(json.loads(stored_raw))
+        except (ValueError, TypeError):
+            pass
     ui_language = get_setting("ui_language", "auto")
     prefs["ui_language"] = ui_language or "auto"
 
@@ -49,6 +60,19 @@ def _clean_prefs(raw: Dict[str, Any]) -> Dict[str, Any]:
     onboarded = raw.get("onboarded")
     if isinstance(onboarded, bool):
         prefs["onboarded"] = onboarded
+
+    # Audio player settings (sleep timer in minutes, playback speed).
+    sleep = raw.get("sleep_minutes")
+    if isinstance(sleep, int) and 0 <= sleep <= 240:
+        prefs["sleep_minutes"] = sleep
+
+    speed = raw.get("speed")
+    try:
+        speed = float(speed)
+    except (TypeError, ValueError):
+        speed = None
+    if speed is not None and 0.75 <= speed <= 2.0:
+        prefs["speed"] = speed
 
     # Reader settings (font size/family/theme) are stored alongside prefs.
     reader = raw.get("reader")

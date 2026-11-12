@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.config import COVERS_DIR, FRONTEND_DIR, HOST, PORT, ensure_dirs
+from backend.config import AUDIO_DIR, COVERS_DIR, FRONTEND_DIR, HOST, PORT, ensure_dirs
 from backend.db import init_db
 
 
@@ -38,16 +38,24 @@ from backend.routers.search import router as search_router
 from backend.routers.library import router as library_router
 from backend.routers.prefs import router as prefs_router
 from backend.routers.progress import router as progress_router
+from backend.routers.audio import router as audio_router
 
 app.include_router(search_router)
 app.include_router(library_router)
 app.include_router(prefs_router)
 app.include_router(progress_router)
+app.include_router(audio_router)
 
 # Cover images served from the data folder (no absolute paths in the frontend).
 ensure_dirs()
 if COVERS_DIR.exists():
     app.mount("/covers", StaticFiles(directory=str(COVERS_DIR)), name="covers")
+
+# Audio files: serve with Range request support so iOS/Safari can seek and the
+# player can pre-load the next chapter. StaticFiles already implements HTTP
+# Range for file responses, but we mount explicitly for clarity.
+if AUDIO_DIR.exists():
+    app.mount("/audio", StaticFiles(directory=str(AUDIO_DIR)), name="audio")
 
 # More API routers (books, audio, progress, settings) are added in later
 # prompts; routers/ and services/ packages are ready for them.

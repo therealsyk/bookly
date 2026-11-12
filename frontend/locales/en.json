@@ -54,5 +54,10 @@
   "close": "Close",
   "jump_to_page": "Jump to page",
   "go": "Go",
-  "no_text": "This book has no text available yet."
+  "no_text": "This book has no text available yet.",
+  "sleep_timer": "Sleep timer",
+  "sleep_off": "Off",
+  "speed": "Speed",
+  "chapters": "Chapters",
+  "no_audio": "This book has no audio available yet."
 }
