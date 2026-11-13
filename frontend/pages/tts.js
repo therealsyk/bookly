@@ -297,6 +297,8 @@ function openTts(book) {
     document.getElementById("tts-close").onclick = () => {
       pause();
       saveNow(); // flush on close
+      // iOS/Safari keeps a stuck speech queue if we don't clear it on exit.
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
       overlay.hidden = true;
     };
 
