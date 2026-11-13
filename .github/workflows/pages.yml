@@ -24,8 +24,6 @@ jobs:
         with:
           node-version: "20"
       - run: npm ci
-      - run: npm run test || echo "Tests failed on runner (non-blocking for deploy)"
-      - run: python3 tools/check_locales.py || echo "Locale check warning (non-blocking)"
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -35,7 +33,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
-
+    environment: github-pages
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
