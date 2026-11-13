@@ -1,3 +1,4 @@
+# Bookly Pages deploy
 name: Bookly Pages
 on:
   push:
