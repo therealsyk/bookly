@@ -5,7 +5,8 @@
 import { openDb, listBooks, deleteBook, getPrefs, savePrefs as dbSavePrefs, getPages, getProgress, saveProgress, getJob } from "./db.js";
 import { searchBooks } from "./search.js";
 import { addFromSource, importTextFile } from "./downloader.js";
-import { importPdf } from "./pdfImport.js";
+import { importPdf, importPdfUrl } from "./pdfImport.js";
+import { pickBestResult } from "./search.js";
 import { listTracks } from "./db.js";
 import * as ispsn from "./sources/ispsn.js";
 import { openReader } from "./pages/reader.js";
@@ -378,6 +379,26 @@ async function renderSearch() {
     resultsEl.appendChild(p);
   }
   for (const item of results) resultsEl.appendChild(bookCard(item));
+
+  // Mini-assistant: if the best match has a direct PDF, fetch it automatically
+  // and open it in the reader. Falls back silently to the manual "Add" buttons
+  // when there is no downloadable source (no PDF available anywhere).
+  const best = pickBestResult(results);
+  if (best && best.pdf_url) {
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.textContent = `🤖 Assistant: downloading "${best.title}"…`;
+    resultsEl.prepend(note);
+    try {
+      const res = await importPdfUrl(best.pdf_url, best.title);
+      note.textContent = res.deduplicated
+        ? `🤖 "${best.title}" was already in your library.`
+        : `🤖 "${best.title}" downloaded and opened.`;
+      openDetail(res.book);
+    } catch (err) {
+      note.textContent = `🤖 Could not download "${best.title}" (${err.message}). Use the Add button instead.`;
+    }
+  }
 
   // Personal source "Biblioteca ISPSN": separate section, only when enabled
   // and a CORS proxy is configured (site sends no ACAO header).

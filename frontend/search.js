@@ -71,3 +71,13 @@ export async function searchBooks(query, lang = "en") {
   await cachePut(query, lang, { results, errors });
   return { query, lang, results, errors, cached: false };
 }
+
+// Mini-assistant pick: the best result to auto-download for a query.
+// Prefers items with a direct PDF URL (Google Books free PDFs), then any
+// source with downloadable text. Returns null if nothing can be fetched.
+export function pickBestResult(results) {
+  if (!results || !results.length) return null;
+  const withPdf = results.find((r) => r.pdf_url);
+  if (withPdf) return withPdf;
+  return results.find((r) => r.sources && r.sources.some((s) => s.text_url)) || null;
+}
