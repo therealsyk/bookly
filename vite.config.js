@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import fs from "node:fs";
 import { copyFileSync, mkdirSync, readdirSync } from "fs";
 
 // The app is fully client-side: Vite only serves/builds the frontend.
@@ -8,6 +9,17 @@ import { copyFileSync, mkdirSync, readdirSync } from "fs";
 function copyStatic() {
   const src = "frontend";
   const out = "dist";
+  // Vite hashes asset links in index.html (./assets/manifest-<hash>.json).
+  // A relative "start_url" in the manifest is resolved against the manifest's
+  // own URL, so a hashed manifest inside assets/ makes the home-screen icon
+  // open /bookly/assets/ -> 404. Point the shell at the root copies instead.
+  const htmlPath = out + "/index.html";
+  const html = fs.readFileSync(htmlPath, "utf8");
+  const fixed = html
+    .replace(/href="[^"]*manifest-[^"]*\.json"/g, 'href="./manifest.json"')
+    .replace(/href="\/icons\/[^"]*"/g, 'href="./icons/icon-192.png"')
+    .replace(/href="[^"]*icon-192[^"]*"/g, 'href="./icons/icon-192.png"');
+  fs.writeFileSync(htmlPath, fixed);
   mkdirSync(out + "/icons", { recursive: true });
   mkdirSync(out + "/locales", { recursive: true });
   copyFileSync(src + "/manifest.json", out + "/manifest.json");
