@@ -1,7 +1,7 @@
 {
   "name": "Bookly",
   "short_name": "Bookly",
-  "start_url": "./index.html",
+  "start_url": "/",
   "display": "standalone",
   "theme_color": "#0f1115",
   "background_color": "#0f1115",
