@@ -1,4 +1,4 @@
-# Bookly Pages deploy (redeploy trigger)
+# Bookly Pages deploy (redeploy trigger 2)
 name: Bookly Pages
 on:
   push:
